@@ -67,7 +67,7 @@ g.surface([6, 7, 13, 12], ID=4)
 g.surface([8, 13, 11, 9], ID=5)
 g.surface([5, 12, 11, 4], ID=6)
 # foil volume
-g.volume([1, 2, 3, 4, 5, 6], ID=1)
+g.volume([1, 2, 3, 4, 5, 6], ID=1, marker=10)
 
 # water points
 g.point([w_max, 0, 0], 8)
@@ -98,55 +98,7 @@ g.surface([19, 23, 25, 20], ID=10)
 g.surface([18, 25, 24, 17], ID=11)
 g.surface([21, 23, 24, 22], ID=12)
 # water volume
-g.volume([6, 5, 4, 7, 8, 9, 10, 11, 12], ID=2)
-'''
-# Foil
-g.spline([0, 1], 1)
-g.spline([0, 2], 2)
-g.spline([0, 3], 3)
-g.spline([1, 5], 4)
-g.spline([1, 6], 5)
-g.spline([2, 4], 6)
-g.spline([2, 5], 7)
-g.spline([3, 4], 8)
-g.spline([3, 6], 9)
-g.spline([4, 7], 10)
-g.spline([5, 7], 11)
-g.spline([6, 7], 12)
-
-g.spline([1, 8], 12)
-g.spline([2, 9], 13)
-g.spline([3, 10], 14)
-g.spline([9, 11], 15)
-g.spline([9, 13], 16)
-g.spline([8, 12], 17)
-g.spline([8, 13], 18)
-g.spline([10, 11], 19)
-g.spline([10, 12], 20)
-g.spline([11, 14], 21)
-g.spline([12, 14], 22)
-g.spline([13, 14], 23)
-
-g.surface([1, 2, 4, 7], ID=1)  # me section border
-g.surface([2, 3, 6, 8], ID=2)  # me section border
-g.surface([1, 3, 9, 5], ID=3)  # me section border
-
-g.surface([7, 11, 10, 6], ID=4)  # me inner border
-g.surface([5, 12, 11, 4], ID=5)  # me inner border
-g.surface([8, 10, 12, 9], ID=6)  # me inner border
-
-g.surface([12, 18, 16, 13, 7, 4], ID=7)  # water section border
-g.surface([13, 15, 19, 14, 8, 6], ID=8)  # water section border
-g.surface([14, 20, 17, 12, 5, 9], ID=9)  # water section border
-g.surface([19, 21, 22, 20], ID=10)  # water outer border
-g.surface([17, 22, 23, 18], ID=11)  # water outer border
-g.surface([15, 21, 23, 16], ID=12)  # water outer border
-
-g.volume([1, 2, 3, 4, 5, 6], ID=1, marker=10)  # foil
-g.volume([4, 5, 6, 7, 8, 9, 10, 11, 12], ID=1, marker=10)  # foil
-# create the surface by defining what lines make up the surface
-# g.surface([0, 1, 2, 3], ID=0, marker=10)  # wire
-# g.surface([1, 4, 5, 6, 7, 8, 2], ID=1, marker=100)  # water'''
+g.volume([6, 5, 4, 7, 8, 9, 10, 11, 12], ID=2, marker=100)
 
 # display our geometry, we use the calfem.vis module
 cfv.drawGeometry(g)
@@ -163,17 +115,11 @@ mesh.elSizeFactor = water_el_size  # Element size Factor
 # To generate the mesh and at the same time get the needed data structures for use with CALFEM we call the .create() method of the mesh object
 coords, edof, dofs, bdofs, elementmarkers = mesh.create()
 tetras = mesh.topo
-#triangles = mesh.topo
-borders = mesh.nodesOnCurve
-nodes = mesh.nodesOnSurface
-# save_mesh(mesh, 'CurrentMesh')
-# save_geometry(g, 'CurrentGeo')
-pass
-'''bdofs_0_set = set(bdofs[0])
-bdofs_40_set = set(bdofs[40])
-bdofs_0_set_new = bdofs_0_set - bdofs_40_set
-bdofs[0] = np.array(list(bdofs_0_set_new))'''
-pass
+# triangles = mesh.topo
+points_fringe_dict = mesh.nodesOnCurve
+points_surface_dict = mesh.nodesOnSurface
+points_volume_dict = mesh.nodesOnVolume
+
 '''
 
         coords - Element coordinates
@@ -203,24 +149,29 @@ cfv.drawMesh(
 )
 cfv.showAndWait()
 
-'''try:
+try:
     os.chdir('Mesh')
 except:
     os.mkdir('Mesh')
     os.chdir('Mesh')
-# os.chdir('Mesh')
-np.savetxt('Mesh_points.csv', np.array(coords))
-np.savetxt('Mesh_elements.csv', np.array(triangles) - 1, fmt='%d')
-np.savetxt('Mesh_facets.csv', np.array(dofs), fmt='%d')
+np.savetxt('Mesh_points.csv', np.array(coords))  # coordinates of the nodes points
+np.savetxt('Mesh_elements.csv', np.array(tetras) - 1, fmt='%d')  # corresponance of tetraeder numbers and points numbers
 np.savetxt('Mesh_markers.csv', np.array(elementmarkers), fmt='%d')
-np.savetxt('Mesh_vert_sector_border.csv', np.concatenate([borders[i] for i in [3, 8]]), fmt='%d')
-np.savetxt('Mesh_vert_sector_border_me.csv', borders[3], fmt='%d')
-np.savetxt('Mesh_hori_sector_border.csv', np.concatenate([borders[i] for i in [0, 4]]), fmt='%d')
-np.savetxt('Mesh_hori_sector_border_me.csv', borders[0], fmt='%d')
-# np.savetxt('Mesh_border_3.csv', np.array(bdofs[3]), fmt='%d')
-np.savetxt('Mesh_wire_outer_border.csv', np.concatenate([borders[i] for i in [1, 2]]), fmt='%d')
-np.savetxt('Mesh_outer_border.csv', np.concatenate([borders[i] for i in [5, 6, 7]]), fmt='%d')
-np.savetxt('Mesh_water_points.csv', nodes[1], fmt='%d')
-# np.savetxt('Mesh_border_OR.csv', np.array(borders[5]), fmt='%d')
+np.savetxt('Mesh_1_sector_surface.csv', np.concatenate([points_surface_dict[i] for i in [1, 7]]),
+           fmt='%d')  # surface where v_z==0
+np.savetxt('Mesh_2_sector_surface.csv', np.concatenate([points_surface_dict[i] for i in [2, 8]]),
+           fmt='%d')  # surface where v_x==0
+np.savetxt('Mesh_3_sector_surface.csv', np.concatenate([points_surface_dict[i] for i in [3, 9]]),
+           fmt='%d')  # surface where v_y==0
+np.savetxt('Mesh_outer_surface.csv',
+           np.concatenate([points_surface_dict[i] for i in [10, 11, 12]]), fmt='%d')  # surface where all stops
+np.savetxt('Mesh_foil_points.csv', points_volume_dict[1], fmt='%d')
+np.savetxt('Mesh_water_points.csv', points_volume_dict[2], fmt='%d')
+np.savetxt('Mesh_1_sector_surface_water.csv', points_surface_dict[1], fmt='%d')  # surface for report
+np.savetxt('Mesh_2_sector_surface_water.csv', points_surface_dict[2], fmt='%d')  # surface for report
+np.savetxt('Mesh_3_sector_surface_water.csv', points_surface_dict[3], fmt='%d')  # surface for report
+np.savetxt('Mesh_1_sector_fringe_water.csv', points_fringe_dict[14], fmt='%d')  # surface for report
+np.savetxt('Mesh_2_sector_fringe_water.csv', points_fringe_dict[15], fmt='%d')  # surface for report
+np.savetxt('Mesh_3_sector_fringe_water.csv', points_fringe_dict[16], fmt='%d')  # surface for report
 
-os.chdir('..')'''
+os.chdir('..')
