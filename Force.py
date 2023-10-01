@@ -55,21 +55,21 @@ def tetra_force_function_scalar(r_0, r_1, r_2, r_3, P):
     proj_123_023 = proj(S_123, S_023)
 
     # point vector
-    v_0 = proj_012_013 + proj_012_023 + proj_013_012 + proj_013_023 + proj_023_012 + proj_023_013 + proj_123_012 + proj_123_013 + proj_123_023
-    v_1 = proj_012_013 + proj_012_123 + proj_013_012 + proj_013_123 + proj_023_012 + proj_023_013 + proj_123_012 + proj_123_013 + proj_023_123
-    v_2 = proj_012_023 + proj_012_123 + proj_013_012 + proj_013_023 + proj_023_012 + proj_023_123 + proj_123_012 + proj_123_023 + proj_013_123
-    v_3 = proj_012_013 + proj_012_023 + proj_013_123 + proj_013_023 + proj_023_013 + proj_023_123 + proj_123_023 + proj_123_013 + proj_012_123
+    v_0 = proj_012_013 + proj_012_023 + proj_013_012 + proj_013_023 + proj_023_012 + proj_023_013
+    v_1 = proj_012_013 + proj_012_123 + proj_013_012 + proj_013_123 + proj_123_012 + proj_123_013
+    v_2 = proj_012_023 + proj_012_123 + proj_023_012 + proj_023_123 + proj_123_012 + proj_123_023
+    v_3 = proj_013_123 + proj_013_023 + proj_023_013 + proj_023_123 + proj_123_023 + proj_123_013
     # point force
     f_0 = P * v_0
     f_1 = P * v_1
     f_2 = P * v_2
     f_3 = P * v_3
 
-    tetra_force = np.array([f_0, f_1, f_2, f_3])
-    return tetra_force
+    #tetra_force = np.array([f_0, f_1, f_2, f_3])
+    return f_0, f_1, f_2, f_3
 
 
-tetra_force_function = np.vectorize(tetra_force_function_scalar, signature='(n),(n),(n),(n),()->(4)')
+tetra_force_function = np.vectorize(tetra_force_function_scalar, signature='(n),(n),(n),(n),()->(n),(n),(n),(n)')
 
 
 def tetra_force_pool(tetras, radiusvector, Pressure, pool, n_proc):
@@ -80,10 +80,11 @@ def tetra_force_pool(tetras, radiusvector, Pressure, pool, n_proc):
     P_list = np.array_split(Pressure, n_proc)
     proc_array = [pool.apply_async(tetra_force_function, args=(r_0_e, r_1_e, r_2_e, r_3_e, P_e)) \
                   for r_0_e, r_1_e, r_2_e, r_3_e, P_e in zip(r_0_list, r_1_list, r_2_list, r_3_list, P_list)]
-    tetras_force = proc_array[0].get()
-    tetras_force = proc_array[0].get().swapaxes(0, 1)
+    tetras_force = np.array(proc_array[0].get())
+    tetras_force = tetras_force.swapaxes(0, 1)
     for proc in proc_array[1:]:
-        tempa = proc.get().swapaxes(0, 1)
+        tempa = np.array(proc.get())
+        tempa = tempa.swapaxes(0,1)
         tetras_force = np.concatenate([tetras_force, tempa])
     return tetras_force
     pass
