@@ -70,24 +70,24 @@ class Simulator:
         self.ax[0, 1].axis('equal')
 
         self.plot_v_1 = self.ax[0, 1].quiver(self.points[self.sector_surface_water_1, 0],
-                                           self.points[self.sector_surface_water_1, 1],
-                                           self.Velocity_Current[self.sector_surface_water_1, 0],
-                                           self.Velocity_Current[self.sector_surface_water_1, 1])
+                                             self.points[self.sector_surface_water_1, 1],
+                                             self.Velocity_Current[self.sector_surface_water_1, 0],
+                                             self.Velocity_Current[self.sector_surface_water_1, 1])
         self.ax[1, 0].axis('equal')
 
         self.plot_v_2 = self.ax[1, 0].quiver(
-                                           self.points[self.sector_surface_water_2, 1],
-                                           self.points[self.sector_surface_water_2, 2],
+            self.points[self.sector_surface_water_2, 1],
+            self.points[self.sector_surface_water_2, 2],
 
-                                           self.Velocity_Current[self.sector_surface_water_2, 1],
-                                           self.Velocity_Current[self.sector_surface_water_2, 2])
+            self.Velocity_Current[self.sector_surface_water_2, 1],
+            self.Velocity_Current[self.sector_surface_water_2, 2])
         self.ax[1, 1].axis('equal')
         self.plot_v_3 = self.ax[1, 1].quiver(self.points[self.sector_surface_water_3, 0],
 
-                                           self.points[self.sector_surface_water_3, 2],
-                                           self.Velocity_Current[self.sector_surface_water_3, 0],
+                                             self.points[self.sector_surface_water_3, 2],
+                                             self.Velocity_Current[self.sector_surface_water_3, 0],
 
-                                           self.Velocity_Current[self.sector_surface_water_3, 2])
+                                             self.Velocity_Current[self.sector_surface_water_3, 2])
         self.fig.tight_layout()
         self.fig.savefig(f'Report Initial.png')
         # plt.show()
@@ -204,13 +204,18 @@ class Simulator:
         self.sector_surface_1 = np.loadtxt('GEO/Mesh/Mesh_1_sector_surface.csv', dtype='int')  # surface where v_z==0
         self.sector_surface_water_1 = np.loadtxt('GEO/Mesh/Mesh_1_sector_surface_water.csv',
                                                  dtype='int')  # surface where v_z==0
+        self.sector_fringe_water_1 = np.loadtxt('GEO/Mesh/Mesh_1_sector_fringe_water.csv',
+                                                dtype='int')  # surface where v_z==0
         self.sector_surface_2 = np.loadtxt('GEO/Mesh/Mesh_2_sector_surface.csv', dtype='int')  # surface where v_x==0
         self.sector_surface_water_2 = np.loadtxt('GEO/Mesh/Mesh_2_sector_surface_water.csv',
                                                  dtype='int')  # surface where v_x==0
+        self.sector_fringe_water_2 = np.loadtxt('GEO/Mesh/Mesh_2_sector_fringe_water.csv',
+                                                dtype='int')  # surface where v_x==0
         self.sector_surface_3 = np.loadtxt('GEO/Mesh/Mesh_3_sector_surface.csv', dtype='int')  # surface where v_y==0
         self.sector_surface_water_3 = np.loadtxt('GEO/Mesh/Mesh_3_sector_surface_water.csv',
                                                  dtype='int')  # surface where v_y==0
-
+        self.sector_fringe_water_3 = np.loadtxt('GEO/Mesh/Mesh_3_sector_fringe_water.csv',
+                                                dtype='int')  # surface where v_y==0
         self.border_outer = np.loadtxt('GEO/Mesh/Mesh_outer_surface.csv', dtype='int')
         self.waterInd_points = np.loadtxt('GEO/Mesh/Mesh_water_points.csv', dtype='int')
 
@@ -475,12 +480,10 @@ class Simulator:
 
                                              self.Velocity_Current[self.sector_surface_water_3, 2])
 
-
-
         self.fig.tight_layout()
         self.fig.savefig(f'Report {mm}.png')
-        #print(f'w_foil = {self.w_foil() * 2.0e4} mkm')
-        #print(f'h_foil = {self.h_foil() * 2.0e4} mkm')
+        # print(f'w_foil = {self.w_foil() * 2.0e4} mkm')
+        # print(f'h_foil = {self.h_foil() * 2.0e4} mkm')
         # print(f'r_wire = {self.r_wire()} cm')
         try:
             print(f't = {int(self.local_finish - self.local_start)} sec')
@@ -514,11 +517,17 @@ class Simulator:
         np.savetxt('Mesh/Mesh_points.csv', self.points)
         np.savetxt('Mesh/Mesh_elements.csv', self.tetras, )
         np.savetxt('Mesh/Mesh_markers.csv', self.tetra_marker, )
-        '''np.savetxt('Mesh/Mesh_vert_sector_border.csv', self.border_vert, )
-        np.savetxt('Mesh/Mesh_hori_sector_border.csv', self.border_hori, )
-        np.savetxt('Mesh/Mesh_wire_outer_border.csv', self.border_wire, )
+        np.savetxt('Mesh/Mesh_1_sector_surface.csv', self.sector_surface_1)
+        np.savetxt('Mesh/Mesh_1_sector_surface_water.csv', self.sector_surface_water_1)
+        np.savetxt('Mesh/Mesh_1_sector_fringe_water.csv', self.sector_fringe_water_1)
+        np.savetxt('Mesh/Mesh_2_sector_surface.csv', self.sector_surface_2)
+        np.savetxt('Mesh/Mesh_2_sector_surface_water.csv', self.sector_surface_water_2)
+        np.savetxt('Mesh/Mesh_2_sector_fringe_water.csv', self.sector_fringe_water_2)
+        np.savetxt('Mesh/Mesh_3_sector_surface.csv', self.sector_surface_3)
+        np.savetxt('Mesh/Mesh_3_sector_surface_water.csv', self.sector_surface_water_3)
+        np.savetxt('Mesh/Mesh_3_sector_fringe_water.csv', self.sector_fringe_water_3)
         np.savetxt('Mesh/Mesh_outer_border.csv', self.border_outer, )
-        np.savetxt('Mesh/Mesh_water_points.csv', self.waterInd_points, )'''
+        np.savetxt('Mesh/Mesh_water_points.csv', self.waterInd_points, )
 
     def plot_array_on_mesh(self, arr, text, numer, time):
         try:
