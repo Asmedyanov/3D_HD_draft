@@ -1,2 +1,2 @@
 N_record = 50
-N_report = 200
+N_report = 100

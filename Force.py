@@ -1,10 +1,11 @@
 import numpy as np
 from numpy.linalg import norm
 import matplotlib.pyplot as plt
+import mpl_toolkits.mplot3d as plt3D
 
 
 def proj(a, b):
-    return b * np.dot(a, b) / np.dot(b, b)
+    return -b * np.dot(a, b) / np.dot(b, b)
 
 
 def tetra_force_function_scalar(r_0, r_1, r_2, r_3, P):
@@ -16,8 +17,16 @@ def tetra_force_function_scalar(r_0, r_1, r_2, r_3, P):
     r_03 = r_3 - r_0
     r_12 = r_2 - r_1
     r_23 = r_3 - r_2
-    r_31 = r_1 - r_3
-
+    #r_31 = r_1 - r_3
+    '''ax = plt.figure().add_subplot(projection='3d')
+    x = np.array([r_0[0], r_0[0], r_0[0],r_1[0],r_2[0],r_3[0]])
+    y = np.array([r_0[1], r_0[1], r_0[1],r_1[1],r_2[1],r_3[1]])
+    z = np.array([r_0[2], r_0[2], r_0[2],r_1[2],r_2[2],r_3[2]])
+    dx = np.array([r_01[0], r_02[0], r_03[0],r_12[0],r_23[0],r_31[0]])
+    dy = np.array([r_01[1], r_02[1], r_03[1],r_12[1],r_23[1],r_31[1]])
+    dz = np.array([r_01[2], r_02[2], r_03[2],r_12[2],r_23[2],r_31[2]])
+    ax.quiver(x, y, z, dx, dy, dz)
+    #plt.show()'''
     # length of the side
     '''S_01 = norm(r_01)
     S_02 = norm(r_02)
@@ -26,22 +35,39 @@ def tetra_force_function_scalar(r_0, r_1, r_2, r_3, P):
     S_23 = norm(r_23)
     S_31 = norm(r_31)'''
     # surface area vectors
-    S_012 = np.cross(r_01, r_02)
+    S_012 = -np.cross(r_01, r_02)
     S_013 = np.cross(r_01, r_03)
-    S_023 = np.cross(r_02, r_03)
+    S_023 = -np.cross(r_02, r_03)
     S_123 = np.cross(r_12, r_23)
-    # surface norms
-    '''n_012 = norm(S_012)
+
+    # center
+    '''M_012 = (r_0 + r_1 + r_2) / 3.0
+    M_013 = (r_0 + r_1 + r_3) / 3.0
+    M_023 = (r_0 + r_2 + r_3) / 3.0
+    M_123 = (r_1 + r_2 + r_3) / 3.0'''
+    '''# surface norms
+    n_012 = norm(S_012)
     n_013 = norm(S_013)
     n_023 = norm(S_023)
-    n_123 = norm(S_123)'''
+    n_123 = norm(S_123)
     # surface directions
-    '''d_012 = S_012 / n_012
-    d_013 = S_013 / n_013
-    d_023 = S_023 / n_023
-    d_123 = S_123 / n_123'''
+    d_012 = S_012 / np.sqrt(n_012)
+    d_013 = S_013 / np.sqrt(n_013)
+    d_023 = S_023 / np.sqrt(n_023)
+    d_123 = S_123 / np.sqrt(n_123)
+
+    x = np.array([M_012[0],M_013[0],M_023[0],M_123[0]])
+    y = np.array([M_012[1],M_013[1],M_023[1],M_123[1]])
+    z = np.array([M_012[2],M_013[2],M_023[2],M_123[2]])
+    dx = np.array([d_012[0],d_013[0],d_023[0],d_123[0]])
+    dy = np.array([d_012[1],d_013[1],d_023[1],d_123[1]])
+    dz = np.array([d_012[2],d_013[2],d_023[2],d_123[2]])
+
+    ax.quiver(x, y, z, dx, dy, dz)
+    #plt.show()'''
+
     # surface projections
-    proj_012_013 = proj(S_012, S_013)
+    '''proj_012_013 = proj(S_012, S_013)
     proj_012_023 = proj(S_012, S_023)
     proj_012_123 = proj(S_012, S_123)
     proj_013_012 = proj(S_013, S_012)
@@ -52,20 +78,35 @@ def tetra_force_function_scalar(r_0, r_1, r_2, r_3, P):
     proj_023_123 = proj(S_023, S_123)
     proj_123_012 = proj(S_123, S_012)
     proj_123_013 = proj(S_123, S_013)
-    proj_123_023 = proj(S_123, S_023)
+    proj_123_023 = proj(S_123, S_023)'''
 
     # point vector
-    v_0 = proj_012_013 + proj_012_023 + proj_013_012 + proj_013_023 + proj_023_012 + proj_023_013
-    v_1 = proj_012_013 + proj_012_123 + proj_013_012 + proj_013_123 + proj_123_012 + proj_123_013
-    v_2 = proj_012_023 + proj_012_123 + proj_023_012 + proj_023_123 + proj_123_012 + proj_123_023
-    v_3 = proj_013_123 + proj_013_023 + proj_023_013 + proj_023_123 + proj_123_023 + proj_123_013
+    v_0 = S_012 + S_013 + S_023  # proj_012_013 + proj_012_023 + proj_013_012 + proj_013_023 + proj_023_012 + proj_023_013
+    v_1 = S_012 + S_013 + S_123  # proj_012_013 + proj_012_123 + proj_013_012 + proj_013_123 + proj_123_012 + proj_123_013
+    v_2 = S_012 + S_023 + S_123  # proj_012_023 + proj_012_123 + proj_023_012 + proj_023_123 + proj_123_012 + proj_123_023
+    v_3 = S_013 + S_023 + S_123  # proj_013_123 + proj_013_023 + proj_023_013 + proj_023_123 + proj_123_023 + proj_123_013
+
+    # force directions
+    '''d_0 = v_0/np.sqrt(n_012)
+    d_1 = v_1/np.sqrt(n_013)
+    d_2 = v_2/np.sqrt(n_023)
+    d_3 = v_3/np.sqrt(n_123)
+    x = np.array([r_0[0], r_1[0], r_2[0], r_3[0]])
+    y = np.array([r_0[1], r_1[1], r_2[1], r_3[1]])
+    z = np.array([r_0[2], r_1[2], r_2[2], r_3[2]])
+    dx = np.array([d_0[0], d_1[0], d_2[0], d_3[0]])
+    dy = np.array([d_0[1], d_1[1], d_2[1], d_3[1]])
+    dz = np.array([d_0[2], d_1[2], d_2[2], d_3[2]])
+
+    ax.quiver(x, y, z, dx, dy, dz)
+    plt.show()'''
     # point force
     f_0 = P * v_0
     f_1 = P * v_1
     f_2 = P * v_2
     f_3 = P * v_3
 
-    #tetra_force = np.array([f_0, f_1, f_2, f_3])
+    # tetra_force = np.array([f_0, f_1, f_2, f_3])
     return f_0, f_1, f_2, f_3
 
 
@@ -84,7 +125,7 @@ def tetra_force_pool(tetras, radiusvector, Pressure, pool, n_proc):
     tetras_force = tetras_force.swapaxes(0, 1)
     for proc in proc_array[1:]:
         tempa = np.array(proc.get())
-        tempa = tempa.swapaxes(0,1)
+        tempa = tempa.swapaxes(0, 1)
         tetras_force = np.concatenate([tetras_force, tempa])
     return tetras_force
     pass

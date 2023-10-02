@@ -30,10 +30,10 @@ class Simulator:
         self.init_tempVectors()
         print('init_tempVectors finished')
 
-        '''self.init_figure()
+        self.init_figure()
         print('init_figure finished')
         self.init_folders()
-        print('init_folders finished')'''
+        print('init_folders finished')
 
     def load_folder(self):
         self.directory = filedialog.askdirectory()
@@ -42,10 +42,10 @@ class Simulator:
 
     def init_figure(self):
         plt.clf()
-        self.fig, self.ax = plt.subplots(2, 3)
+        self.fig, self.ax = plt.subplots(2, 2)
         ratio = self.points[:, 0].max() / self.points[:, 1].max()
         print(f'ratio = {ratio}')
-        self.fig.set_size_inches(11.7 * ratio, 8.3)
+        self.fig.set_size_inches(11.7, 8.3)
         self.ax[0, 0].set_title('Resitive power')
         self.ax[0, 0].set_xlabel('Time, ns')
         self.ax[0, 0].set_ylabel('Power, GW')
@@ -55,53 +55,41 @@ class Simulator:
         self.current_power_time_annotation = self.ax[0, 0].annotate(f'{0} ns, {0} GW', xy=(0, 0), xytext=(3, 1.5),
                                                                     arrowprops=dict(facecolor='black', shrink=0.05))
 
-        self.ax[0, 1].set_title('Density, $g/cm^3$')
+        self.ax[0, 1].set_title('Velocity XY')
         self.ax[0, 1].set_xlabel('X, cm')
         self.ax[0, 1].set_ylabel('Y, cm')
 
-        self.ax[0, 2].set_title('Pressure,kbar')  # $dB(P_{0})$')
-        self.ax[0, 2].set_xlabel('X, cm')
-        self.ax[0, 2].set_ylabel('Y, cm')
-
-        self.ax[1, 0].set_title('Velocity')
+        self.ax[1, 0].set_title('Velocity YZ')
         self.ax[1, 0].set_xlabel('X, cm')
         self.ax[1, 0].set_ylabel('Y, cm')
 
-        self.ax[1, 1].set_title('Temperature, K')
+        self.ax[1, 1].set_title('Velosity XZ')
         self.ax[1, 1].set_xlabel('X, cm')
         self.ax[1, 1].set_ylabel('Y, cm')
 
-        self.ax[1, 2].set_title('Energy, MJ/kg')
-        self.ax[1, 2].set_xlabel('X, cm')
-        self.ax[1, 2].set_ylabel('Y, cm')
-        # self.ax[0, 1].axis('equal')
-        self.fmt = lambda x, pos: f'{x:.1e}'
-        self.plot_ro = self.ax[0, 1].tripcolor(self.points[:, 0], self.points[:, 1], self.tetras,
-                                               facecolors=self.Ro_Current,
-                                               edgecolors='face')
-        self.colorbar_ro = self.fig.colorbar(self.plot_ro, ax=self.ax[0, 1], format=self.fmt)
+        self.ax[0, 1].axis('equal')
 
-        # self.ax[0, 2].axis('equal')
-        self.plot_press = self.ax[0, 2].tripcolor(self.points[:, 0], self.points[:, 1], self.tetras,
-                                                  facecolors=self.Pressure_Current,
-                                                  edgecolors='face')
-        self.colorbar_press = self.fig.colorbar(self.plot_press, ax=self.ax[0, 2], format=self.fmt)
+        self.plot_v_1 = self.ax[0, 1].quiver(self.points[self.sector_surface_water_1, 0],
+                                           self.points[self.sector_surface_water_1, 1],
+                                           self.Velocity_Current[self.sector_surface_water_1, 0],
+                                           self.Velocity_Current[self.sector_surface_water_1, 1])
+        self.ax[1, 0].axis('equal')
 
-        # self.ax[1, 1].axis('equal')
-        self.plot_temperature = self.ax[1, 1].tripcolor(self.points[:, 0], self.points[:, 1], self.tetras,
-                                                        facecolors=self.Temperature_Current, edgecolors='face')
-        self.colorbar_temperature = self.fig.colorbar(self.plot_temperature, ax=self.ax[1, 1], format=self.fmt)
+        self.plot_v_2 = self.ax[1, 0].quiver(
+                                           self.points[self.sector_surface_water_2, 1],
+                                           self.points[self.sector_surface_water_2, 2],
 
-        # self.ax[1, 2].axis('equal')
-        self.plot_energy = self.ax[1, 2].tripcolor(self.points[:, 0], self.points[:, 1], self.tetras,
-                                                   facecolors=self.Energy_Current * 1.0e-6, edgecolors='face')
-        self.colorbar_energy = self.fig.colorbar(self.plot_energy, ax=self.ax[1, 2], format=self.fmt)
+                                           self.Velocity_Current[self.sector_surface_water_2, 1],
+                                           self.Velocity_Current[self.sector_surface_water_2, 2])
+        self.ax[1, 1].axis('equal')
+        self.plot_v_3 = self.ax[1, 1].quiver(self.points[self.sector_surface_water_3, 0],
+
+                                           self.points[self.sector_surface_water_3, 2],
+                                           self.Velocity_Current[self.sector_surface_water_3, 0],
+
+                                           self.Velocity_Current[self.sector_surface_water_3, 2])
         self.fig.tight_layout()
         self.fig.savefig(f'Report Initial.png')
-        # self.ax[1, 0].axis('equal')
-        self.plot_v = self.ax[1, 0].quiver(self.points[:, 0], self.points[:, 1], self.Velocity_Current[:, 0],
-                                           self.Velocity_Current[:, 1])
-        self.fig.tight_layout()
         # plt.show()
         pass
 
@@ -214,8 +202,15 @@ class Simulator:
         self.tetras = np.loadtxt('GEO/Mesh/Mesh_elements.csv', dtype='int')
         self.tetra_marker = np.loadtxt('GEO/Mesh/Mesh_markers.csv', dtype='int')
         self.sector_surface_1 = np.loadtxt('GEO/Mesh/Mesh_1_sector_surface.csv', dtype='int')  # surface where v_z==0
+        self.sector_surface_water_1 = np.loadtxt('GEO/Mesh/Mesh_1_sector_surface_water.csv',
+                                                 dtype='int')  # surface where v_z==0
         self.sector_surface_2 = np.loadtxt('GEO/Mesh/Mesh_2_sector_surface.csv', dtype='int')  # surface where v_x==0
+        self.sector_surface_water_2 = np.loadtxt('GEO/Mesh/Mesh_2_sector_surface_water.csv',
+                                                 dtype='int')  # surface where v_x==0
         self.sector_surface_3 = np.loadtxt('GEO/Mesh/Mesh_3_sector_surface.csv', dtype='int')  # surface where v_y==0
+        self.sector_surface_water_3 = np.loadtxt('GEO/Mesh/Mesh_3_sector_surface_water.csv',
+                                                 dtype='int')  # surface where v_y==0
+
         self.border_outer = np.loadtxt('GEO/Mesh/Mesh_outer_surface.csv', dtype='int')
         self.waterInd_points = np.loadtxt('GEO/Mesh/Mesh_water_points.csv', dtype='int')
 
@@ -276,7 +271,7 @@ class Simulator:
         self.roInitial[self.wireInd] = self.roMetalStart
         self.roInitial[self.waterInd] = self.roWaterStart
         vol = volume(self.points[self.tetras[:, 0]], self.points[self.tetras[:, 1]],
-                      self.points[self.tetras[:, 2]],self.points[self.tetras[:, 3]])
+                     self.points[self.tetras[:, 2]], self.points[self.tetras[:, 3]])
         self.tetras_mass = self.roInitial * vol
         poin_masses = np.zeros(len(self.points))
         for i, trlist0, trlist1, trlist2, trlist3 in zip(np.arange(len(self.points)), self.list_points_tetras_0,
@@ -310,7 +305,7 @@ class Simulator:
         Time, Power = Read_Time_Power()
         # %%% Power input
         # simulated_part = 1.0 / 4.0
-        simulated_part = 1.0 / 2.0
+        simulated_part = 1.0 / 8.0
         effisency = 1.0
         plot_time = [np.argwhere(Time > 0)[0, 0], np.argwhere(Time > self.Tmax)[0, 0], ]
         self.Power = Power[plot_time[0]:plot_time[1]]
@@ -318,7 +313,7 @@ class Simulator:
         self.Power_interpolated = np.interp(self.timing, self.time_Power * 1.0e-3, self.Power)
         Power = Power * effisency  #
         Power = Power * (Power > 0)  #
-        totMas = self.Length * np.sum(self.tetras_mass[self.wireInd])
+        totMas = np.sum(self.tetras_mass[self.wireInd])
         # % total mass of one wire [g]
         powInp = Power * simulated_part / totMas * 1e6  # % input power [J/microsecond/kg]
         self.eInp = np.interp(self.timing, Time, powInp) * self.dT
@@ -333,14 +328,13 @@ class Simulator:
         # %%% ------ Force calculation for each triangle ------ %%%
         # pressure in triangle
         tetras_force = tetra_force_pool(self.tetras, self.points,
-                                               self.Pressure_Current, self.pool, self.N_nuc)
+                                        self.Pressure_Current, self.pool, self.N_nuc)
         point_force = point_force_list_pool(self.points_tetras_0, self.points_tetras_1,
-                                            self.points_tetras_2,self.points_tetras_3,
+                                            self.points_tetras_2, self.points_tetras_3,
                                             tetras_force, self.pool, self.N_nuc)
-        point_force[self.border_vert, 0] *= 0
-        # point_force[self.border_vert, 1] *= 2
-        # point_force[self.border_hori, 0] *= 2
-        # point_force[self.border_hori, 1] *= 0
+        point_force[self.sector_surface_1, 2] *= 0
+        point_force[self.sector_surface_2, 0] *= 0
+        point_force[self.sector_surface_3, 1] *= 0
         point_force[self.border_outer] *= 0
         point_acceleration = point_force / self.point_mass[:, np.newaxis]
 
@@ -351,10 +345,10 @@ class Simulator:
         pNew = self.points + vNew * self.dT
 
         # %%% New density calculation
-        newArea = Area_r_short(self.tetras, pNew)
-        roNew = self.tetras_mass / newArea
-        ss = self.ssInitial * power((roNew / self.roInitial), self.gamma)
-        viscosity = Viscosity_short(self.tetras, pNew, self.Velocity_Current, point_acceleration, ss, roNew)
+        newVolume = Volume_r_short(self.tetras, pNew)
+        roNew = self.tetras_mass / newVolume
+        # ss = self.ssInitial * power((roNew / self.roInitial), self.gamma)
+        # viscosity = Viscosity_short(self.tetras, pNew, self.Velocity_Current, point_acceleration, ss, roNew)
         # % % % New pressure, energy and temperature calculation
         eNew = self.Energy_Current
         presNew = self.Pressure_Current
@@ -373,7 +367,7 @@ class Simulator:
         eNew -= (presNew + self.Pressure_Current) * (
                 1.0 / roNew - 1.0 / self.Ro_Current) * 5.0e7
         eNew[self.wireInd] += self.eInp[mm]
-        presNew += viscosity
+        # presNew += viscosity
         # % % % Assigning new values
         # self.points = (pNew + self.points) / 2.0
         self.points = pNew
@@ -406,7 +400,7 @@ class Simulator:
         print(f'Small report {mm}')
         print(f'{int(100.0 * mm / float(self.Ntime))} % finished')
 
-        self.colorbar_ro.remove()
+        '''self.colorbar_ro.remove()
         self.colorbar_press.remove()
         self.colorbar_temperature.remove()
         self.colorbar_energy.remove()
@@ -414,8 +408,10 @@ class Simulator:
         self.plot_ro.remove()
         self.plot_press.remove()
         self.plot_temperature.remove()
-        self.plot_energy.remove()
-        self.plot_v.remove()
+        self.plot_energy.remove()'''
+        self.plot_v_1.remove()
+        self.plot_v_2.remove()
+        self.plot_v_3.remove()
         self.current_power_time_point.remove()
         self.current_power_time_point = self.ax[0, 0].plot(self.timing[mm] * 1.0e3, self.Power_interpolated[mm], 'o')[0]
         self.current_power_time_annotation.remove()
@@ -425,7 +421,7 @@ class Simulator:
             # xytext=(self.timing[mm] * 1.0e3 + 1.0, self.Power_interpolated[mm] + 1.0),
             arrowprops=dict(facecolor='black', shrink=0.05))
 
-        triangles_to_show = self.tetras_water
+        '''triangles_to_show = self.tetras_water
         points_to_show = self.points[self.waterInd_points]
         v_to_show = self.Velocity_Current[self.waterInd_points]
         ro_to_show = self.Ro_Current[self.waterInd]
@@ -434,10 +430,10 @@ class Simulator:
                             self.waterInd] * 1.0e3  # dB(self.Pressure_Current[self.waterInd], self.Pressure_Current[self.waterInd])
         press_to_show = np.where(press_to_show > 0, press_to_show, 0)
         temp_to_show = self.Temperature_Current[self.waterInd]
-        ener_to_show = self.Energy_Current[self.waterInd] * 1.0e-6
+        ener_to_show = self.Energy_Current[self.waterInd] * 1.0e-6'''
 
         # self.ax[0, 1].axis('equal')
-        self.plot_ro = self.ax[0, 1].tripcolor(points_to_show[:, 0], points_to_show[:, 1], triangles_to_show,
+        '''self.plot_ro = self.ax[0, 1].tripcolor(points_to_show[:, 0], points_to_show[:, 1], triangles_to_show,
                                                facecolors=ro_to_show, edgecolors='face')
         self.colorbar_ro = self.fig.colorbar(self.plot_ro, ax=self.ax[0, 1], format=self.fmt)
 
@@ -455,33 +451,36 @@ class Simulator:
         self.plot_energy = self.ax[1, 2].tripcolor(points_to_show[:, 0], points_to_show[:, 1], triangles_to_show,
                                                    facecolors=ener_to_show, edgecolors='face')
         self.colorbar_energy = self.fig.colorbar(self.plot_energy, ax=self.ax[1, 2], format=self.fmt)
-
+'''
         # self.ax[1, 0].axis('equal')
-        self.plot_v = self.ax[1, 0].quiver(points_to_show[:, 0], points_to_show[:, 1],
-                                           v_to_show[:, 0], v_to_show[:, 1])
-        '''try:
-            x_limit = (0.0, self.w_foil() + self.Velocity_Current.max() * self.timing[mm] + 0.1)
-            if x_limit[1] >= self.points[self.border_hori, 0].max():
-                x_limit[1] = self.points[self.border_hori, 0].max()
-            y_limit = (0.0, self.h_foil() + self.Velocity_Current.max() * self.timing[mm] + 0.1)
-            if y_limit[1] >= self.points[self.border_vert, 1].max():
-                y_limit[1] = self.points[self.border_vert, 1].max()
-            self.ax[0, 1].set_xlim(x_limit)
-            self.ax[0, 1].set_ylim(y_limit)
-            self.ax[0, 2].set_xlim(x_limit)
-            self.ax[0, 2].set_ylim(y_limit)
-            self.ax[1, 0].set_xlim(x_limit)
-            self.ax[1, 0].set_ylim(y_limit)
-            self.ax[1, 1].set_xlim(x_limit)
-            self.ax[1, 1].set_ylim(y_limit)
-            self.ax[1, 2].set_xlim(x_limit)
-            self.ax[1, 2].set_ylim(y_limit)
-        except:
-            pass'''
+        self.ax[0, 1].axis('equal')
+
+        self.plot_v_1 = self.ax[0, 1].quiver(self.points[self.sector_surface_water_1, 0],
+                                             self.points[self.sector_surface_water_1, 1],
+                                             self.Velocity_Current[self.sector_surface_water_1, 0],
+                                             self.Velocity_Current[self.sector_surface_water_1, 1])
+        self.ax[1, 0].axis('equal')
+
+        self.plot_v_2 = self.ax[1, 0].quiver(
+            self.points[self.sector_surface_water_2, 1],
+            self.points[self.sector_surface_water_2, 2],
+
+            self.Velocity_Current[self.sector_surface_water_2, 1],
+            self.Velocity_Current[self.sector_surface_water_2, 2])
+        self.ax[1, 1].axis('equal')
+        self.plot_v_3 = self.ax[1, 1].quiver(self.points[self.sector_surface_water_3, 0],
+
+                                             self.points[self.sector_surface_water_3, 2],
+                                             self.Velocity_Current[self.sector_surface_water_3, 0],
+
+                                             self.Velocity_Current[self.sector_surface_water_3, 2])
+
+
+
         self.fig.tight_layout()
         self.fig.savefig(f'Report {mm}.png')
-        print(f'w_foil = {self.w_foil() * 2.0e4} mkm')
-        print(f'h_foil = {self.h_foil() * 2.0e4} mkm')
+        #print(f'w_foil = {self.w_foil() * 2.0e4} mkm')
+        #print(f'h_foil = {self.h_foil() * 2.0e4} mkm')
         # print(f'r_wire = {self.r_wire()} cm')
         try:
             print(f't = {int(self.local_finish - self.local_start)} sec')
@@ -515,11 +514,11 @@ class Simulator:
         np.savetxt('Mesh/Mesh_points.csv', self.points)
         np.savetxt('Mesh/Mesh_elements.csv', self.tetras, )
         np.savetxt('Mesh/Mesh_markers.csv', self.tetra_marker, )
-        np.savetxt('Mesh/Mesh_vert_sector_border.csv', self.border_vert, )
+        '''np.savetxt('Mesh/Mesh_vert_sector_border.csv', self.border_vert, )
         np.savetxt('Mesh/Mesh_hori_sector_border.csv', self.border_hori, )
         np.savetxt('Mesh/Mesh_wire_outer_border.csv', self.border_wire, )
         np.savetxt('Mesh/Mesh_outer_border.csv', self.border_outer, )
-        np.savetxt('Mesh/Mesh_water_points.csv', self.waterInd_points, )
+        np.savetxt('Mesh/Mesh_water_points.csv', self.waterInd_points, )'''
 
     def plot_array_on_mesh(self, arr, text, numer, time):
         try:
