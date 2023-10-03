@@ -136,7 +136,6 @@ points_volume_dict = mesh.nodesOnVolume
 
 # To display the generated mesh we can use the drawMesh() function of the calfem.vis module
 cfv.figure()
-
 # Draw the mesh.
 
 cfv.drawMesh(
@@ -157,15 +156,15 @@ except:
 np.savetxt('Mesh_points.csv', np.array(coords))  # coordinates of the nodes points
 np.savetxt('Mesh_elements.csv', np.array(tetras) - 1, fmt='%d')  # corresponance of tetraeder numbers and points numbers
 np.savetxt('Mesh_markers.csv', np.array(elementmarkers), fmt='%d')
-#print(np.array(coords)[points_surface_dict[8]])
-np.savetxt('Mesh_1_sector_surface.csv', np.concatenate([points_surface_dict[i] for i in [1, 7]]),
-           fmt='%d')  # surface where v_z==0
-np.savetxt('Mesh_2_sector_surface.csv', np.concatenate([points_surface_dict[i] for i in [2, 8]]),
-           fmt='%d')  # surface where v_x==0
-np.savetxt('Mesh_3_sector_surface.csv', np.concatenate([points_surface_dict[i] for i in [3, 9]]),
-           fmt='%d')  # surface where v_y==0
-np.savetxt('Mesh_outer_surface.csv',
-           np.concatenate([points_surface_dict[i] for i in [10, 11, 12]]), fmt='%d')  # surface where all stops
+# print(np.array(coords)[points_surface_dict[8]])
+
+Mesh_1_sector_surface_nodes = np.concatenate([points_surface_dict[i] for i in [1, 7]])  # surface where v_z==0
+Mesh_2_sector_surface_nodes = np.concatenate([points_surface_dict[i] for i in [2, 8]])  # surface where v_x==0
+Mesh_3_sector_surface_nodes = np.concatenate([points_surface_dict[i] for i in [3, 9]])  # surface where v_y==0
+np.savetxt('Mesh_1_sector_surface_nodes.csv', Mesh_1_sector_surface_nodes, fmt='%d')
+np.savetxt('Mesh_2_sector_surface_nodes.csv', Mesh_2_sector_surface_nodes, fmt='%d')
+np.savetxt('Mesh_3_sector_surface_nodes.csv', Mesh_3_sector_surface_nodes, fmt='%d')
+
 np.savetxt('Mesh_foil_points.csv', points_volume_dict[1], fmt='%d')
 np.savetxt('Mesh_water_points.csv', points_volume_dict[2], fmt='%d')
 np.savetxt('Mesh_1_sector_surface_water.csv', points_surface_dict[7], fmt='%d')  # surface for report
