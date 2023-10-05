@@ -2,5 +2,5 @@ L_foil = 4.0 cm
 W_foil = 8.0e-1 cm
 H_foil = 35.0e-4 cm
 L_water = 4.8 cm
-W_water = 22.0e-1 cm
-H_water = 1.5e0 cm
+W_water = 1.6 cm
+H_water = 0.8 cm

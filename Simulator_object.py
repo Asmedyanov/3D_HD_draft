@@ -12,11 +12,14 @@ import traceback
 from Force import *
 from My_Math import *
 from Volume import *
+from matplotlib import pyplot as plt
 
 
 class Simulator:
     def __init__(self):
         self.load_folder()
+        self.init_Pool()
+        print('init_Pool finished')
         self.init_EOS()
         print('init_EOS finished')
         self.init_Mesh()
@@ -25,8 +28,7 @@ class Simulator:
         print('init_Masses finished')
         self.init_Power()
         print('init_Power finished')
-        self.init_Pool()
-        print('init_Pool finished')
+
         self.init_tempVectors()
         print('init_tempVectors finished')
 
@@ -178,7 +180,7 @@ class Simulator:
     def init_tempVectors(self):
 
         self.eInitial = np.ones(self.Ntr)
-        self.eInitial[self.wireInd] = self.eMetalStart
+        self.eInitial[self.foilInd] = self.eMetalStart
         self.eInitial[self.waterInd] = self.eWaterStart
         self.Pressure_Current = ones(self.Ntr) * 1.0e-6
         self.Pressure_Prev = ones(self.Ntr) * 1.0e-6
@@ -189,18 +191,18 @@ class Simulator:
         self.Temperature_Current = ones(self.Ntr) * 300.0
         self.Temperature_Initial = ones(self.Ntr) * 300.0
         self.Ro_Current = np.ones(self.Ntr)
-        self.Ro_Current[self.wireInd] = self.roMetalStart
+        self.Ro_Current[self.foilInd] = self.roMetalStart
         self.Ro_Current[self.waterInd] = self.roWaterStart
         self.Energy_Current = np.ones(self.Ntr)
-        self.Energy_Current[self.wireInd] = self.eMetalStart
+        self.Energy_Current[self.foilInd] = self.eMetalStart
         self.Energy_Current[self.waterInd] = self.eWaterStart
-        self.Pressure_Current[self.wireInd], self.Temperature_Current[self.wireInd] = self.Metal_EOS.ERoFindPT(
+        self.Pressure_Current[self.foilInd], self.Temperature_Current[self.foilInd] = self.Metal_EOS.ERoFindPT(
             self.eMetalStart,
             self.roMetalStart)
         self.Velocity_Current = zeros((self.Np, 3))
 
     def init_Pool(self):
-        self.N_nuc = 10
+        self.N_nuc = 15
         self.pool = mp.Pool(self.N_nuc + 1)
 
     def optimize_Pool(self):
@@ -284,12 +286,12 @@ class Simulator:
         self.waterInd = np.argwhere(
             self.tetra_marker == 100)  # %find all the indices of coordinates of water (subdomain 1)
 
-        self.wireInd = np.argwhere(self.tetra_marker == 10)
+        self.foilInd = np.argwhere(self.tetra_marker == 10)
 
-        tetras_water = self.tetras[self.waterInd]
+        '''tetras_water = self.tetras[self.waterInd]
         for i, ind in enumerate(self.waterInd_points):
             tetras_water = np.where(tetras_water == ind, i, tetras_water)
-        self.tetras_water = tetras_water
+        self.tetras_water = tetras_water'''
         # %%% Set time
         Time_parameter_file = open('SIM/Time_parameter.txt')
         self.dT = float(Time_parameter_file.readline().split('=')[-1].split(' ')[1])
@@ -310,11 +312,18 @@ class Simulator:
         self.timing = np.arange(0, self.Tmax, self.dT)
         self.Ntime = self.timing.size
 
-        points_tetras_0 = []
-        points_tetras_1 = []
-        points_tetras_2 = []
-        points_tetras_3 = []
-        for i in range(self.Np):
+        tetras_df = pd.DataFrame(self.tetras, columns=['Column0', 'Column1', 'Column2', 'Column3'])
+        tetras_df['my_index'] = np.arange(self.Ntr)
+        #func_pount_tetras_pandas(tetras_df,0,self.Np)
+
+        proc_list = [self.pool.apply_async(func_pount_tetras_pandas, args=(tetras_df, i, self.Np)) for i in range(4)]
+
+        points_tetras_0 = proc_list[0].get()
+        points_tetras_1 = proc_list[1].get()
+        points_tetras_2 = proc_list[2].get()
+        points_tetras_3 = proc_list[3].get()
+        pass
+        '''for i in range(self.Np):
             tetras_to_add = np.argwhere(self.tetras[:, 0] == i)[:, 0]
             points_tetras_0.append(tetras_to_add)
             tetras_to_add = np.argwhere(self.tetras[:, 1] == i)[:, 0]
@@ -322,7 +331,7 @@ class Simulator:
             tetras_to_add = np.argwhere(self.tetras[:, 2] == i)[:, 0]
             points_tetras_2.append(tetras_to_add)
             tetras_to_add = np.argwhere(self.tetras[:, 3] == i)[:, 0]
-            points_tetras_3.append(tetras_to_add)
+            points_tetras_3.append(tetras_to_add)'''
         self.list_points_tetras_0 = points_tetras_0
         self.list_points_tetras_1 = points_tetras_1
         self.list_points_tetras_2 = points_tetras_2
@@ -334,15 +343,16 @@ class Simulator:
 
     def init_Masses(self):
         self.roInitial = np.ones(self.Ntr)
-        self.roInitial[self.wireInd] = self.roMetalStart
+        self.roInitial[self.foilInd] = self.roMetalStart
         self.roInitial[self.waterInd] = self.roWaterStart
         vol = volume(self.points[self.tetras[:, 0]], self.points[self.tetras[:, 1]],
                      self.points[self.tetras[:, 2]], self.points[self.tetras[:, 3]])
+        foil_vol = np.sum(vol[self.foilInd])
         self.tetras_mass = self.roInitial * vol
         poin_masses = np.zeros(len(self.points))
-        for i, trlist0, trlist1, trlist2, trlist3 in zip(np.arange(len(self.points)), self.list_points_tetras_0,
-                                                         self.list_points_tetras_1, self.list_points_tetras_2,
-                                                         self.list_points_tetras_3):
+        for i, trlist0, trlist1, trlist2, trlist3 in zip(np.arange(self.Np), self.points_tetras_0,
+                                                         self.points_tetras_1, self.points_tetras_2,
+                                                         self.points_tetras_3):
             m = 0
             for tr in trlist0:
                 m += self.tetras_mass[tr]
@@ -379,7 +389,7 @@ class Simulator:
         self.Power_interpolated = np.interp(self.timing, self.time_Power * 1.0e-3, self.Power)
         Power = Power * effisency  #
         Power = Power * (Power > 0)  #
-        totMas = np.sum(self.tetras_mass[self.wireInd])
+        totMas = np.sum(self.tetras_mass[self.foilInd])
         # % total mass of one wire [g]
         powInp = Power * simulated_part / totMas * 1e6  # % input power [J/microsecond/kg]
         self.eInp = np.interp(self.timing, Time, powInp) * self.dT
@@ -421,9 +431,9 @@ class Simulator:
         tempNew = self.Temperature_Current
         # press_EOS = self.Pressure_Current
 
-        presNew[self.wireInd], tempNew[self.wireInd] = self.Metal_EOS.ERoFindPT_pool(
-            eNew[self.wireInd],
-            roNew[self.wireInd],
+        presNew[self.foilInd], tempNew[self.foilInd] = self.Metal_EOS.ERoFindPT_pool(
+            eNew[self.foilInd],
+            roNew[self.foilInd],
             self.pool, self.N_nuc)
         presNew[self.waterInd], tempNew[self.waterInd] = self.Water_EOS.ERoFindPT_pool(
             eNew[self.waterInd],
@@ -432,7 +442,7 @@ class Simulator:
         presNew = (presNew + self.Pressure_Current + self.Pressure_Prev) / 3.0
         eNew -= (presNew + self.Pressure_Current) * (
                 1.0 / roNew - 1.0 / self.Ro_Current) * 5.0e7
-        eNew[self.wireInd] += self.eInp[mm]
+        eNew[self.foilInd] += self.eInp[mm]
         # presNew += viscosity
         # % % % Assigning new values
         # self.points = (pNew + self.points) / 2.0
@@ -564,7 +574,6 @@ class Simulator:
         self.colorbar_ro_XY.remove()
         self.colorbar_ro_YZ.remove()
         self.colorbar_ro_XZ.remove()
-
 
         self.plot_ro_XY.remove()
         self.plot_ro_YZ.remove()

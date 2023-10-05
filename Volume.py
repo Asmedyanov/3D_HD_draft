@@ -6,7 +6,7 @@ def volume_scalar(r_a, r_b, r_c, r_d):
     ab = r_b - r_a
     ac = r_c - r_a
     ad = r_d - r_a
-    v = np.dot(ab, np.cross(ac, ad))
+    v = np.dot(ab, np.cross(ac, ad))/6.0
     return v
 
 

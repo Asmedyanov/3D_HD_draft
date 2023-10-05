@@ -131,20 +131,22 @@ class MyMesh:
 
         # To generate the mesh and at the same time get the needed data structures for use with CALFEM we call the .create() method of the mesh object
         coords, edof, dofs, bdofs, elementmarkers = mesh.create()
+        try:
+            # To display the generated mesh we can use the drawMesh() function of the calfem.vis module
+            cfv.figure()
+            # Draw the mesh.
 
-        # To display the generated mesh we can use the drawMesh() function of the calfem.vis module
-        cfv.figure()
-        # Draw the mesh.
-
-        cfv.drawMesh(
-            coords=coords,
-            edof=edof,
-            dofs_per_node=mesh.dofsPerNode,
-            el_type=mesh.elType,
-            filled=True,
-            title="Example 01"
-        )
-        cfv.showAndWait()
+            cfv.drawMesh(
+                coords=coords,
+                edof=edof,
+                dofs_per_node=mesh.dofsPerNode,
+                el_type=mesh.elType,
+                filled=True,
+                title="Example 01"
+            )
+            cfv.showAndWait()
+        except Exception as ex:
+            print(ex)
 
         self.coords = coords
         self.mesh_dict = {

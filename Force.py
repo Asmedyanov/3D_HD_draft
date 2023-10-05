@@ -1,7 +1,8 @@
 import numpy as np
-from numpy.linalg import norm
-import matplotlib.pyplot as plt
-import mpl_toolkits.mplot3d as plt3D
+#from numpy.linalg import norm
+#import matplotlib.pyplot as plt
+#import mpl_toolkits.mplot3d as plt3D
+#import cupy as cp
 
 
 def proj(a, b):
@@ -17,7 +18,7 @@ def tetra_force_function_scalar(r_0, r_1, r_2, r_3, P):
     r_03 = r_3 - r_0
     r_12 = r_2 - r_1
     r_23 = r_3 - r_2
-    #r_31 = r_1 - r_3
+    # r_31 = r_1 - r_3
     '''ax = plt.figure().add_subplot(projection='3d')
     x = np.array([r_0[0], r_0[0], r_0[0],r_1[0],r_2[0],r_3[0]])
     y = np.array([r_0[1], r_0[1], r_0[1],r_1[1],r_2[1],r_3[1]])
@@ -35,10 +36,10 @@ def tetra_force_function_scalar(r_0, r_1, r_2, r_3, P):
     S_23 = norm(r_23)
     S_31 = norm(r_31)'''
     # surface area vectors
-    S_012 = -np.cross(r_01, r_02)
-    S_013 = np.cross(r_01, r_03)
-    S_023 = -np.cross(r_02, r_03)
-    S_123 = np.cross(r_12, r_23)
+    S_012 = -np.cross(r_01, r_02) / 2
+    S_013 = np.cross(r_01, r_03) / 2
+    S_023 = -np.cross(r_02, r_03) / 2
+    S_123 = np.cross(r_12, r_23) / 2
 
     # center
     '''M_012 = (r_0 + r_1 + r_2) / 3.0

@@ -1,2 +1,2 @@
-foil_el_size = 1.0e-1 cm
-water_el_size = 2.0e-1 cm
+foil_el_size = 6.0e-2 cm
+water_el_size = 6.0e-2 cm
