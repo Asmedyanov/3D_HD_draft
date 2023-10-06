@@ -1,2 +1,0 @@
-dT = 1.0e-4 mks
-T_max = 1.5 mks

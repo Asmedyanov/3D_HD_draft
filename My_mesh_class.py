@@ -20,8 +20,23 @@ class MyMesh:
         print("Mesh is separated")
         self.define_triangles()
         print("Triangles are defined")
+        self.define_cross_section()
+        print('Crossection is defined')
         self.save_mesh()
         print("Mesh is saved")
+
+    def define_cross_section(self):
+        metal_index = np.argwhere(np.array(self.mesh_dict['elementmarkers']) == 10)[:, 0]
+        metal_tetras = self.mesh_dict['tetras'][metal_index]
+        metal_centra_coords = np.zeros((len(metal_tetras), 3))
+        metal_cross_length = np.zeros(len(metal_tetras))
+        for i, tr in enumerate(metal_tetras):
+            for k in tr:
+                metal_centra_coords[i] += self.coords[k]
+            metal_centra_coords[i] /= 4
+            metal_cross_length[i] = self.waist_foil + (self.w_foil - self.waist_foil) * metal_centra_coords[
+                i, 2] / self.l_foil
+        self.Cross_metal_coef = metal_cross_length.min() / metal_cross_length
 
     def read_folder(self):
         directory = filedialog.askdirectory()
@@ -31,14 +46,20 @@ class MyMesh:
         self.water_el_size = float(mesh_size_file.readline().split('=')[-1].split(' ')[1])
         mesh_size_file.close()
         physical_size_file = open('Physical_sizes.txt')
+        self.key_word = physical_size_file.readline()
         L_foil = float(physical_size_file.readline().split('=')[-1].split(' ')[1])
         W_foil = float(physical_size_file.readline().split('=')[-1].split(' ')[1])
+        Waist_foil = W_foil
+        if self.key_word == 'Butterfly\n':
+            print('Butterfly')
+            Waist_foil = float(physical_size_file.readline().split('=')[-1].split(' ')[1])
         H_foil = float(physical_size_file.readline().split('=')[-1].split(' ')[1])
         L_water = float(physical_size_file.readline().split('=')[-1].split(' ')[1])
         W_water = float(physical_size_file.readline().split('=')[-1].split(' ')[1])
         H_water = float(physical_size_file.readline().split('=')[-1].split(' ')[1])
         physical_size_file.close()
         self.w_foil = W_foil / 2.0
+        self.waist_foil = Waist_foil / 2.0
         self.h_foil = H_foil / 2.0
         self.l_foil = L_foil / 2.0
         self.w_max = W_water / 2.0
@@ -54,11 +75,11 @@ class MyMesh:
         # foil points
 
         g.point([0, 0, 0], 0, el_size=self.foil_el_size)
-        g.point([self.w_foil, 0, 0], 1, el_size=self.foil_el_size)
+        g.point([self.waist_foil, 0, 0], 1, el_size=self.foil_el_size)
         g.point([0, self.h_foil, 0], 2, el_size=self.foil_el_size)
         g.point([0, 0, self.l_foil], 3, el_size=self.foil_el_size)
         g.point([0, self.h_foil, self.l_foil], 4, el_size=self.foil_el_size)
-        g.point([self.w_foil, self.h_foil, 0], 5, el_size=self.foil_el_size)
+        g.point([self.waist_foil, self.h_foil, 0], 5, el_size=self.foil_el_size)
         g.point([self.w_foil, 0, self.l_foil], 6, el_size=self.foil_el_size)
         g.point([self.w_foil, self.h_foil, self.l_foil], 7, el_size=self.foil_el_size)
         # foil lines
@@ -261,5 +282,6 @@ class MyMesh:
             os.mkdir('Mesh')
             os.chdir('Mesh')
         np.savetxt('Mesh_points.csv', np.array(self.coords))  # coordinates of the nodes points
+        np.savetxt('Cross_metal_coef.csv', self.Cross_metal_coef)  # coordinates of the nodes points
         for my_key, my_data in self.mesh_dict.items():
             np.savetxt(f'{my_key}.csv', my_data, fmt='%d')

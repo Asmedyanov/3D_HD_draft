@@ -281,12 +281,12 @@ class Simulator:
         self.triangle_XY = np.loadtxt('GEO/Mesh/triangle_XY.csv', dtype='int')
         self.triangle_YZ = np.loadtxt('GEO/Mesh/triangle_YZ.csv', dtype='int')
         self.triangle_XZ = np.loadtxt('GEO/Mesh/triangle_XZ.csv', dtype='int')
-
+        self.cross_metal_coef = np.loadtxt('GEO/Mesh/Cross_metal_coef.csv')
         # self.indxOR = np.loadtxt('Mesh_foil/Mesh_border_OR.csv', dtype='int')
         self.waterInd = np.argwhere(
-            self.tetra_marker == 100)  # %find all the indices of coordinates of water (subdomain 1)
+            self.tetra_marker == 100)[:,0]  # %find all the indices of coordinates of water (subdomain 1)
 
-        self.foilInd = np.argwhere(self.tetra_marker == 10)
+        self.foilInd = np.argwhere(self.tetra_marker == 10)[:,0]
 
         '''tetras_water = self.tetras[self.waterInd]
         for i, ind in enumerate(self.waterInd_points):
@@ -301,7 +301,7 @@ class Simulator:
         self.Np = len(self.points)
 
         physical_size_file = open('GEO/Physical_sizes.txt')
-        self.Length = float(physical_size_file.readline().split('=')[-1].split(' ')[1])  # length of cylinder,cm
+        #self.Length = float(physical_size_file.readline().split('=')[-1].split(' ')[1])  # length of cylinder,cm
         physical_size_file.close()
 
         Report_parameters_file = open('SIM/Report_parameters.txt')
@@ -314,7 +314,7 @@ class Simulator:
 
         tetras_df = pd.DataFrame(self.tetras, columns=['Column0', 'Column1', 'Column2', 'Column3'])
         tetras_df['my_index'] = np.arange(self.Ntr)
-        #func_pount_tetras_pandas(tetras_df,0,self.Np)
+        # func_pount_tetras_pandas(tetras_df,0,self.Np)
 
         proc_list = [self.pool.apply_async(func_pount_tetras_pandas, args=(tetras_df, i, self.Np)) for i in range(4)]
 
@@ -442,7 +442,7 @@ class Simulator:
         presNew = (presNew + self.Pressure_Current + self.Pressure_Prev) / 3.0
         eNew -= (presNew + self.Pressure_Current) * (
                 1.0 / roNew - 1.0 / self.Ro_Current) * 5.0e7
-        eNew[self.foilInd] += self.eInp[mm]
+        eNew[self.foilInd] += self.eInp[mm]*self.cross_metal_coef
         # presNew += viscosity
         # % % % Assigning new values
         # self.points = (pNew + self.points) / 2.0
