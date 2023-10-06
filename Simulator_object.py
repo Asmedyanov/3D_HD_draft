@@ -202,7 +202,7 @@ class Simulator:
         self.Velocity_Current = zeros((self.Np, 3))
 
     def init_Pool(self):
-        self.N_nuc = 15
+        self.N_nuc = 14
         self.pool = mp.Pool(self.N_nuc + 1)
 
     def optimize_Pool(self):
