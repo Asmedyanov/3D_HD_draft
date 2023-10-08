@@ -10,10 +10,10 @@ def Area(x1, x2, x3, y1, y2, y3):
 
 def Area_r(r_0, r_1, r_2):
     # vectors of sides
-    # r_01 = r_1 - r_0
-    # r_02 = r_2 - r_0
+    r_01 = r_1 - r_0
+    r_02 = r_2 - r_0
     # r_12 = r_2 - r_1
-    cross = np.abs(np.cross(r_1 - r_0, r_2 - r_1, axis=1))
+    cross = np.abs(np.cross(r_01, r_02)) / 2.0
 
     return cross
 
@@ -24,6 +24,6 @@ def Area_r_short(triangles, radiusvector):
     # r_01 = r_1 - r_0
     # r_02 = r_2 - r_0
     # r_12 = r_2 - r_1
-    cross = np.abs(np.cross(r_1 - r_0, r_2 - r_1, axis=1))
+    cross = np.abs(np.cross(r_1 - r_0, r_2 - r_1, axis=1)) / 2
 
     return cross
