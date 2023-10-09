@@ -68,38 +68,84 @@ def Viscosity_r(r_0, r_1, r_2, r_3, v_0, v_1, v_2, v_3, a_0, a_1, a_2, a_3, SS, 
     v_no_1 = v_0 + v_2 + v_3
     v_no_2 = v_0 + v_1 + v_3
     v_no_3 = v_0 + v_1 + v_2
-    #DVXDX = -2 * Area((v_1[0] + v_2[0]), (v_0[0] + v_2[0]), (v_1[0] + v_0[0]), r_0[1], r_1[1], r_2[1])
-    #DVYDY = 2 * Area((v_1[1] + v_2[1]), (v_0[1] + v_2[1]), (v_1[1] + v_0[1]), r_0[0], r_1[0], r_2[0])
+    # DVXDX = -2 * Area((v_1[0] + v_2[0]), (v_0[0] + v_2[0]), (v_1[0] + v_0[0]), r_0[1], r_1[1], r_2[1])
+    # DVYDY = 2 * Area((v_1[1] + v_2[1]), (v_0[1] + v_2[1]), (v_1[1] + v_0[1]), r_0[0], r_1[0], r_2[0])
 
-    #DVXDY = 2 * Area((v_1[0] + v_2[0]), (v_0[0] + v_2[0]), (v_1[0] + v_0[0]), r_0[0], r_1[0], r_2[0])
+    # DVXDY = 2 * Area((v_1[0] + v_2[0]), (v_0[0] + v_2[0]), (v_1[0] + v_0[0]), r_0[0], r_1[0], r_2[0])
 
-    #DVYDX = -2 * Area((v_1[1] + v_2[1]), (v_0[1] + v_2[1]), (v_1[1] + v_0[1]), r_0[1], r_1[1], r_2[1])
-    DVXDX = -2 * Area_r([v_no_0[0], r_0[1]], [v_no_1[0], r_1[1]], [v_no_2[0], r_2[1]])
-    DVYDY = 2 * Area_r([v_no_0[1], r_0[0]], [v_no_1[1], r_1[0]], [v_no_2[1], r_2[0]])
-    DVZDZ = 2 * Area_r([v_no_0[2], r_0[0]], [v_no_1[2], r_1[0]], [v_no_2[2], r_2[0]])
-    DVYDX = -2 * Area_r([v_no_0[1], r_0[1]], [v_no_1[1], r_1[1]], [v_no_2[1], r_2[1]])
-    DVXDY = 2 * Area_r([v_no_0[0], r_0[0]], [v_no_1[0], r_1[0]], [v_no_2[0], r_2[0]])
-    DSDT = DVXDX * square(n_ac[:, 0]) + DVYDY * square(n_ac[:, 1]) + (DVXDY + DVYDX) * n_ac[:, 0] * n_ac[:, 1]
+    # DVYDX = -2 * Area((v_1[1] + v_2[1]), (v_0[1] + v_2[1]), (v_1[1] + v_0[1]), r_0[1], r_1[1], r_2[1])
+    DVXDX = -Area_r([v_no_0[0], r_0[1]], [v_no_1[0], r_1[1]], [v_no_2[0], r_2[1]])
+    DVYDY = Area_r([v_no_0[1], r_0[0]], [v_no_1[1], r_1[0]], [v_no_2[1], r_2[0]])
+    DVZDZ = Area_r([v_no_0[2], r_0[0]], [v_no_1[2], r_1[0]], [v_no_2[2], r_2[0]])
+
+    DVYDX = -Area_r([v_no_0[1], r_0[1]], [v_no_1[1], r_1[1]], [v_no_2[1], r_2[1]])
+    DVXDY = Area_r([v_no_0[0], r_0[0]], [v_no_1[0], r_1[0]], [v_no_2[0], r_2[0]])
+    DVXDZ = Area_r([v_no_0[0], r_0[2]], [v_no_1[0], r_1[2]], [v_no_2[0], r_2[2]])
+    DVYDZ = Area_r([v_no_0[1], r_0[2]], [v_no_1[1], r_1[2]], [v_no_2[1], r_2[2]])
+    DVZDX = -Area_r([v_no_0[2], r_0[1]], [v_no_1[2], r_1[1]], [v_no_2[2], r_2[1]])
+    DVZDY = Area_r([v_no_0[2], r_0[0]], [v_no_1[2], r_1[0]], [v_no_2[2], r_2[0]])
+    DSDT = DVXDX * square(n_ac[0]) + \
+           DVYDY * square(n_ac[1]) + \
+           DVZDZ * square(n_ac[2]) + \
+           (DVXDY + DVYDX) * n_ac[0] * n_ac[1] + \
+           (DVXDZ + DVZDX) * n_ac[0] * n_ac[2] + \
+           (DVYDZ + DVZDY) * n_ac[1] * n_ac[2]
+    DSDT *= 2.0
     d_0 = r_0 - rc
     d_1 = r_1 - rc
     d_2 = r_2 - rc
     d_3 = r_3 - rc
-    SUM = abs(d_0[:, 1] * n_ac[:, 0] - d_0[:, 0] * n_ac[:, 1])
-    SUM += abs(d_0[:, 2] * n_ac[:, 0] - d_0[:, 0] * n_ac[:, 2])
-    SUM += abs(d_0[:, 2] * n_ac[:, 1] - d_0[:, 1] * n_ac[:, 2])
+    SUM = abs(d_0[1] * n_ac[0] - d_0[0] * n_ac[1])
+    SUM += abs(d_0[2] * n_ac[0] - d_0[0] * n_ac[2])
+    SUM += abs(d_0[2] * n_ac[1] - d_0[1] * n_ac[2])
 
-    SUM += abs(d_1[:, 1] * n_ac[:, 0] - d_1[:, 0] * n_ac[:, 1])
-    SUM += abs(d_1[:, 2] * n_ac[:, 0] - d_1[:, 0] * n_ac[:, 2])
-    SUM += abs(d_1[:, 2] * n_ac[:, 1] - d_1[:, 1] * n_ac[:, 2])
+    SUM += abs(d_1[1] * n_ac[0] - d_1[0] * n_ac[1])
+    SUM += abs(d_1[2] * n_ac[0] - d_1[0] * n_ac[2])
+    SUM += abs(d_1[2] * n_ac[1] - d_1[1] * n_ac[2])
 
-    SUM += abs(d_2[:, 1] * n_ac[:, 0] - d_2[:, 0] * n_ac[:, 1])
-    SUM += abs(d_2[:, 2] * n_ac[:, 0] - d_2[:, 0] * n_ac[:, 2])
-    SUM += abs(d_2[:, 2] * n_ac[:, 1] - d_2[:, 1] * n_ac[:, 2])
+    SUM += abs(d_2[1] * n_ac[0] - d_2[0] * n_ac[1])
+    SUM += abs(d_2[2] * n_ac[0] - d_2[0] * n_ac[2])
+    SUM += abs(d_2[2] * n_ac[1] - d_2[1] * n_ac[2])
 
-    SUM += abs(d_3[:, 1] * n_ac[:, 0] - d_3[:, 0] * n_ac[:, 1])
-    SUM += abs(d_3[:, 2] * n_ac[:, 0] - d_3[:, 0] * n_ac[:, 2])
-    SUM += abs(d_3[:, 2] * n_ac[:, 1] - d_3[:, 1] * n_ac[:, 2])
+    SUM += abs(d_3[1] * n_ac[0] - d_3[0] * n_ac[1])
+    SUM += abs(d_3[2] * n_ac[0] - d_3[0] * n_ac[2])
+    SUM += abs(d_3[2] * n_ac[1] - d_3[1] * n_ac[2])
 
     SUM = where(SUM < 1.0e-7, SUM + 1.0e-7, SUM)
     v = (DSDT < 0) * (SS * RO * abs(DSDT / SUM))
     return v
+
+
+Viscosity_vector = np.vectorize(Viscosity_r, signature='(n),(n),(n),(n),(n),(n),(n),(n),(n),(n),(n),(n),(),()->()')
+
+
+def Viscosity_short_new(tetras, r, r_dot, r_dot_dot, SS, RO):
+    r_0 = r[tetras[:, 0]]
+    r_1 = r[tetras[:, 1]]
+    r_2 = r[tetras[:, 2]]
+    r_3 = r[tetras[:, 3]]
+    r_dot_0 = r_dot[tetras[:, 0]]
+    r_dot_1 = r_dot[tetras[:, 1]]
+    r_dot_2 = r_dot[tetras[:, 2]]
+    r_dot_3 = r_dot[tetras[:, 3]]
+    r_dot_dot_0 = r_dot_dot[tetras[:, 0]]
+    r_dot_dot_1 = r_dot_dot[tetras[:, 1]]
+    r_dot_dot_2 = r_dot_dot[tetras[:, 2]]
+    r_dot_dot_3 = r_dot_dot[tetras[:, 3]]
+    visc = Viscosity_vector(
+        r_0,
+        r_1,
+        r_2,
+        r_3,
+        r_dot_0,
+        r_dot_1,
+        r_dot_2,
+        r_dot_3,
+        r_dot_dot_0,
+        r_dot_dot_1,
+        r_dot_dot_2,
+        r_dot_dot_3,
+        SS,
+        RO
+    )
+    return visc

@@ -423,8 +423,8 @@ class Simulator:
         # %%% New density calculation
         newVolume = Volume_r_short(self.tetras, pNew)
         roNew = self.tetras_mass / newVolume
-        # ss = self.ssInitial * power((roNew / self.roInitial), self.gamma)
-        # viscosity = Viscosity_short(self.tetras, pNew, self.Velocity_Current, point_acceleration, ss, roNew)
+        ss = self.ssInitial * power((roNew / self.roInitial), self.gamma)
+        viscosity = Viscosity_short_new(self.tetras, pNew, self.Velocity_Current, point_acceleration, ss, roNew)
         # % % % New pressure, energy and temperature calculation
         eNew = self.Energy_Current
         presNew = self.Pressure_Current
@@ -443,7 +443,7 @@ class Simulator:
         eNew -= (presNew + self.Pressure_Current) * (
                 1.0 / roNew - 1.0 / self.Ro_Current) * 5.0e7
         eNew[self.foilInd] += self.eInp[mm]*self.cross_metal_coef
-        # presNew += viscosity
+        presNew += viscosity
         # % % % Assigning new values
         # self.points = (pNew + self.points) / 2.0
         self.points = pNew

@@ -8,10 +8,10 @@ def Area(x1, x2, x3, y1, y2, y3):
     return a
 
 
-def Area_r(r_0, r_1, r_2):
+def Area_r(r_0: np.array, r_1: np.array, r_2: np.array):
     # vectors of sides
-    r_01 = r_1 - r_0
-    r_02 = r_2 - r_0
+    r_01 = np.array(r_1) - np.array(r_0)
+    r_02 = np.array(r_2) - np.array(r_0)
     # r_12 = r_2 - r_1
     cross = np.abs(np.cross(r_01, r_02)) / 2.0
 
