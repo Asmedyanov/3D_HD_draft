@@ -2,6 +2,7 @@ from Area import *
 from numpy import ones, sqrt, square, abs, where
 import numpy as np
 from numpy.linalg import norm
+import matplotlib.pyplot as plt
 
 
 def Viscosity(x1, x2, x3, y1, y2, y3, vx1, vx2, vx3, vy1, vy2, vy3, ax1, ax2, ax3, ay1, ay2, ay3, SS, RO):
@@ -54,6 +55,26 @@ def Viscosity_short(triangles, radiusvector, velocity, acceleration, SS, RO):
     SUM = SUM + ones(SUM.size) * (abs(SUM) < 1.e-7)
     v = (DSDT < 0) * (SS * RO * abs(DSDT / SUM))
     return v
+
+
+def Viscosity_mu_r(r_0, r_1, r_2, r_3, v_0, v_1, v_2, v_3):
+    A0 = Area_r(r_1, r_2, r_3)
+    A1 = Area_r(r_0, r_2, r_3)
+    A2 = Area_r(r_0, r_1, r_3)
+    A3 = Area_r(r_0, r_1, r_2)
+    u_0 = v_0 - (v_1 + v_2 + v_3) / 3.0
+    u_1 = v_1 - (v_0 + v_2 + v_3) / 3.0
+    u_2 = v_2 - (v_0 + v_1 + v_3) / 3.0
+    u_3 = v_3 - (v_0 + v_1 + v_2) / 3.0
+    SUM = 0
+    SUM += A0 ** 2 * norm(u_0) ** 2
+    SUM += A1 ** 2 * norm(u_1) ** 2
+    SUM += A2 ** 2 * norm(u_2) ** 2
+    SUM += A3 ** 2 * norm(u_3) ** 2
+    return SUM
+
+
+Viscosity_mu_Vector = np.vectorize(Viscosity_mu_r, signature='(n),(n),(n),(n),(n),(n),(n),(n)->()')
 
 
 def Viscosity_r(r_0, r_1, r_2, r_3, v_0, v_1, v_2, v_3, a_0, a_1, a_2, a_3, SS, RO):
@@ -148,4 +169,58 @@ def Viscosity_short_new(tetras, r, r_dot, r_dot_dot, SS, RO):
         SS,
         RO
     )
+    return visc
+
+
+def Viscosity_short_mu(tetras, r, r_dot):
+    r_0 = r[tetras[:, 0]]
+    r_1 = r[tetras[:, 1]]
+    r_2 = r[tetras[:, 2]]
+    r_3 = r[tetras[:, 3]]
+    r_dot_0 = r_dot[tetras[:, 0]]
+    r_dot_1 = r_dot[tetras[:, 1]]
+    r_dot_2 = r_dot[tetras[:, 2]]
+    r_dot_3 = r_dot[tetras[:, 3]]
+    visc = Viscosity_mu_Vector(
+        r_0,
+        r_1,
+        r_2,
+        r_3,
+        r_dot_0,
+        r_dot_1,
+        r_dot_2,
+        r_dot_3
+    )
+    return visc
+
+
+def Viscosity_short_mu_pool(tetras, r, r_dot, pool, n_nuc):
+    r_0 = np.array_split(r[tetras[:, 0]], n_nuc)
+    r_1 = np.array_split(r[tetras[:, 1]], n_nuc)
+    r_2 = np.array_split(r[tetras[:, 2]], n_nuc)
+    r_3 = np.array_split(r[tetras[:, 3]], n_nuc)
+    r_dot_0 = np.array_split(r_dot[tetras[:, 0]], n_nuc)
+    r_dot_1 = np.array_split(r_dot[tetras[:, 1]], n_nuc)
+    r_dot_2 = np.array_split(r_dot[tetras[:, 2]], n_nuc)
+    r_dot_3 = np.array_split(r_dot[tetras[:, 3]], n_nuc)
+    proc_list = [pool.apply_async(Viscosity_mu_Vector, args=(
+        r_0[i],
+        r_1[i],
+        r_2[i],
+        r_3[i],
+        r_dot_0[i],
+        r_dot_1[i],
+        r_dot_2[i],
+        r_dot_3[i]
+    )) for i in range(n_nuc)]
+    visc = np.ones(len(tetras))
+    position = 0
+    for proc in proc_list:
+        temp = proc.get()
+        l = len(temp)
+        visc[position:position + l] = temp
+        position += l
+    # plt.clf()
+    # plt.plot(visc)
+    # plt.show()
     return visc

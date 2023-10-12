@@ -445,20 +445,25 @@ class EOS:
         return E, Ro
 
     def ERoFindPT_pool(self, E: np.array, Ro: np.array, pool, n_proc: int):
-        if ((self.full_array_len == 0) | (n_proc != self.n_proc)):
+        '''if ((self.full_array_len == 0) | (n_proc != self.n_proc)):
             self.n_proc = n_proc
             self.full_array_len = E.size
             self.start = [i * self.full_array_len // n_proc for i in range(n_proc)]
             self.finish = [(i + 1) * self.full_array_len // n_proc for i in range(n_proc)]
-            self.finish[-1] = self.full_array_len
+            self.finish[-1] = self.full_array_len'''
         E_splited = np.array_split(E, n_proc)
         Ro_splited = np.array_split(Ro, n_proc)
         proc_array = [pool.apply_async(self.ERoFindPT_vector, args=(E_, Ro_)) for E_, Ro_ in zip(E_splited, Ro_splited)]
-        P, T = proc_array[0].get()
-        for proc in proc_array[1:]:
+        Ntr = len(E)
+        T = np.zeros(Ntr)
+        P = np.zeros(Ntr)
+        position = 0
+        for proc in proc_array:
             tempP, tempT = proc.get()
-            T = np.concatenate([T, tempT])
-            P = np.concatenate([P, tempP])
+            l = len(tempT)
+            T[position:position + l] = tempT
+            P[position:position + l] = tempP
+            position += l
         return P, T
 
     def __getstate__(self):

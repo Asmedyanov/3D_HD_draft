@@ -57,7 +57,7 @@ class Simulator:
         self.current_power_time_annotation = self.ax[0, 0].annotate(f'{0} ns, {0} GW', xy=(0, 0), xytext=(3, 1.5),
                                                                     arrowprops=dict(facecolor='black', shrink=0.05))
 
-        self.ax[0, 1].set_title('Density XY')
+        self.ax[0, 1].set_title('Viscosity XY')
         self.ax[0, 1].set_xlabel('X, cm')
         self.ax[0, 1].set_ylabel('Y, cm')
 
@@ -73,7 +73,7 @@ class Simulator:
         self.ax[0, 1].axis('equal')
         self.plot_ro_XY = self.ax[0, 1].tripcolor(self.points[self.sector_surface_water_XY, 0],
                                                   self.points[self.sector_surface_water_XY, 1], self.triangle_XY,
-                                                  facecolors=self.Ro_Current[self.tetra_XY],
+                                                  facecolors=self.Viscosity_Current[self.tetra_XY],
                                                   edgecolors='face')
         self.colorbar_ro_XY = self.fig.colorbar(self.plot_ro_XY, ax=self.ax[0, 1], format=self.fmt)
 
@@ -183,6 +183,7 @@ class Simulator:
         self.eInitial[self.foilInd] = self.eMetalStart
         self.eInitial[self.waterInd] = self.eWaterStart
         self.Pressure_Current = ones(self.Ntr) * 1.0e-6
+        self.Viscosity_Current = np.zeros(self.Ntr)
         self.Pressure_Prev = ones(self.Ntr) * 1.0e-6
         self.Pressure_Initial = ones(self.Ntr) * 1.0e-6
         self.presPred = ones(self.Ntr) * 1.0e-6
@@ -251,6 +252,9 @@ class Simulator:
         self.n = 7.15  # % polytropic index
         self.gamma = (self.n - 1) / 2
 
+        # viscosity coefficient 1.0e-3 Pa*s for water in 20 C
+        self.mu = 1.0
+
     def init_Mesh(self):
         # %%% Setting geometry
         self.points = np.loadtxt('GEO/Mesh/Mesh_points.csv')
@@ -284,9 +288,9 @@ class Simulator:
         self.cross_metal_coef = np.loadtxt('GEO/Mesh/Cross_metal_coef.csv')
         # self.indxOR = np.loadtxt('Mesh_foil/Mesh_border_OR.csv', dtype='int')
         self.waterInd = np.argwhere(
-            self.tetra_marker == 100)[:,0]  # %find all the indices of coordinates of water (subdomain 1)
+            self.tetra_marker == 100)[:, 0]  # %find all the indices of coordinates of water (subdomain 1)
 
-        self.foilInd = np.argwhere(self.tetra_marker == 10)[:,0]
+        self.foilInd = np.argwhere(self.tetra_marker == 10)[:, 0]
 
         '''tetras_water = self.tetras[self.waterInd]
         for i, ind in enumerate(self.waterInd_points):
@@ -301,7 +305,7 @@ class Simulator:
         self.Np = len(self.points)
 
         physical_size_file = open('GEO/Physical_sizes.txt')
-        #self.Length = float(physical_size_file.readline().split('=')[-1].split(' ')[1])  # length of cylinder,cm
+        # self.Length = float(physical_size_file.readline().split('=')[-1].split(' ')[1])  # length of cylinder,cm
         physical_size_file.close()
 
         Report_parameters_file = open('SIM/Report_parameters.txt')
@@ -322,20 +326,7 @@ class Simulator:
         points_tetras_1 = proc_list[1].get()
         points_tetras_2 = proc_list[2].get()
         points_tetras_3 = proc_list[3].get()
-        pass
-        '''for i in range(self.Np):
-            tetras_to_add = np.argwhere(self.tetras[:, 0] == i)[:, 0]
-            points_tetras_0.append(tetras_to_add)
-            tetras_to_add = np.argwhere(self.tetras[:, 1] == i)[:, 0]
-            points_tetras_1.append(tetras_to_add)
-            tetras_to_add = np.argwhere(self.tetras[:, 2] == i)[:, 0]
-            points_tetras_2.append(tetras_to_add)
-            tetras_to_add = np.argwhere(self.tetras[:, 3] == i)[:, 0]
-            points_tetras_3.append(tetras_to_add)'''
-        self.list_points_tetras_0 = points_tetras_0
-        self.list_points_tetras_1 = points_tetras_1
-        self.list_points_tetras_2 = points_tetras_2
-        self.list_points_tetras_3 = points_tetras_3
+        points_tetras = [points_tetras_0, points_tetras_1, points_tetras_2, points_tetras_3]
         self.points_tetras_0 = np.array(points_tetras_0, dtype=object)
         self.points_tetras_1 = np.array(points_tetras_1, dtype=object)
         self.points_tetras_2 = np.array(points_tetras_2, dtype=object)
@@ -347,7 +338,6 @@ class Simulator:
         self.roInitial[self.waterInd] = self.roWaterStart
         vol = volume(self.points[self.tetras[:, 0]], self.points[self.tetras[:, 1]],
                      self.points[self.tetras[:, 2]], self.points[self.tetras[:, 3]])
-        foil_vol = np.sum(vol[self.foilInd])
         self.tetras_mass = self.roInitial * vol
         poin_masses = np.zeros(len(self.points))
         for i, trlist0, trlist1, trlist2, trlist3 in zip(np.arange(self.Np), self.points_tetras_0,
@@ -423,8 +413,15 @@ class Simulator:
         # %%% New density calculation
         newVolume = Volume_r_short(self.tetras, pNew)
         roNew = self.tetras_mass / newVolume
-        ss = self.ssInitial * power((roNew / self.roInitial), self.gamma)
-        viscosity = Viscosity_short_new(self.tetras, pNew, self.Velocity_Current, point_acceleration, ss, roNew)
+        # ss = self.ssInitial * power((roNew / self.roInitial), self.gamma)
+        viscosity = Viscosity_short_mu_pool(
+            self.tetras, pNew, self.Velocity_Current, self.pool, self.N_nuc
+        ) * (self.mu * self.dT / (3.0 * newVolume ** 2))
+        self.Viscosity_Current = viscosity
+        # test_array = viscosity / self.Pressure_Current
+        # print(np.min(test_array))
+        # print(np.max(test_array))
+        # print(np.mean(test_array))
         # % % % New pressure, energy and temperature calculation
         eNew = self.Energy_Current
         presNew = self.Pressure_Current
@@ -442,7 +439,7 @@ class Simulator:
         presNew = (presNew + self.Pressure_Current + self.Pressure_Prev) / 3.0
         eNew -= (presNew + self.Pressure_Current) * (
                 1.0 / roNew - 1.0 / self.Ro_Current) * 5.0e7
-        eNew[self.foilInd] += self.eInp[mm]*self.cross_metal_coef
+        eNew[self.foilInd] += self.eInp[mm] * self.cross_metal_coef
         presNew += viscosity
         # % % % Assigning new values
         # self.points = (pNew + self.points) / 2.0
@@ -591,7 +588,7 @@ class Simulator:
         self.ax[0, 1].axis('equal')
         self.plot_ro_XY = self.ax[0, 1].tripcolor(self.points[self.sector_surface_water_XY, 0],
                                                   self.points[self.sector_surface_water_XY, 1], self.triangle_XY,
-                                                  facecolors=self.Ro_Current[self.tetra_XY],
+                                                  facecolors=self.Viscosity_Current[self.tetra_XY],
                                                   edgecolors='face')
         self.colorbar_ro_XY = self.fig.colorbar(self.plot_ro_XY, ax=self.ax[0, 1], format=self.fmt)
 

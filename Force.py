@@ -1,8 +1,10 @@
 import numpy as np
-#from numpy.linalg import norm
-#import matplotlib.pyplot as plt
-#import mpl_toolkits.mplot3d as plt3D
-#import cupy as cp
+
+
+# from numpy.linalg import norm
+# import matplotlib.pyplot as plt
+# import mpl_toolkits.mplot3d as plt3D
+# import cupy as cp
 
 
 def proj(a, b):
@@ -122,14 +124,21 @@ def tetra_force_pool(tetras, radiusvector, Pressure, pool, n_proc):
     P_list = np.array_split(Pressure, n_proc)
     proc_array = [pool.apply_async(tetra_force_function, args=(r_0_e, r_1_e, r_2_e, r_3_e, P_e)) \
                   for r_0_e, r_1_e, r_2_e, r_3_e, P_e in zip(r_0_list, r_1_list, r_2_list, r_3_list, P_list)]
-    tetras_force = np.array(proc_array[0].get())
-    tetras_force = tetras_force.swapaxes(0, 1)
-    for proc in proc_array[1:]:
-        tempa = np.array(proc.get())
-        tempa = tempa.swapaxes(0, 1)
-        tetras_force = np.concatenate([tetras_force, tempa])
-    return tetras_force
-    pass
+    Ntr = len(tetras)
+    tetras_force_0 = np.zeros((Ntr, 3))
+    tetras_force_1 = np.zeros((Ntr, 3))
+    tetras_force_2 = np.zeros((Ntr, 3))
+    tetras_force_3 = np.zeros((Ntr, 3))
+    position = 0
+    for proc in proc_array:
+        temp_0, temp_1, temp_2, temp_3 = np.array(proc.get())
+        l = len(temp_0)
+        tetras_force_0[position:position + l] = temp_0
+        tetras_force_1[position:position + l] = temp_1
+        tetras_force_2[position:position + l] = temp_2
+        tetras_force_3[position:position + l] = temp_3
+        position += l
+    return np.array([tetras_force_0, tetras_force_1, tetras_force_2, tetras_force_3])
 
 
 def point_force_func(a: np.array, points_tetras: np.array):
@@ -139,6 +148,9 @@ def point_force_func(a: np.array, points_tetras: np.array):
     return point_force
 
 
+points_tetras = []
+
+
 def point_force_list_pool(points_tetras_0, points_tetras_1, points_tetras_2, points_tetras_3,
                           tetras_force: np.array, pool,
                           N_nuc: int):
@@ -146,30 +158,34 @@ def point_force_list_pool(points_tetras_0, points_tetras_1, points_tetras_2, poi
     points_tetras_1_splited = np.array_split(points_tetras_1, N_nuc)
     points_tetras_2_splited = np.array_split(points_tetras_2, N_nuc)
     points_tetras_3_splited = np.array_split(points_tetras_3, N_nuc)
-    proc_list_0 = [pool.apply_async(point_force_func, args=(tetras_force[:, 0], points_tetras)) for
+    proc_list_0 = [pool.apply_async(point_force_func, args=(tetras_force[0], points_tetras)) for
                    points_tetras
                    in points_tetras_0_splited]
-    proc_list_1 = [pool.apply_async(point_force_func, args=(tetras_force[:, 1], points_tetras)) for
+    proc_list_1 = [pool.apply_async(point_force_func, args=(tetras_force[1], points_tetras)) for
                    points_tetras
                    in points_tetras_1_splited]
-    proc_list_2 = [pool.apply_async(point_force_func, args=(tetras_force[:, 2], points_tetras)) for
+    proc_list_2 = [pool.apply_async(point_force_func, args=(tetras_force[2], points_tetras)) for
                    points_tetras
                    in points_tetras_2_splited]
-    proc_list_3 = [pool.apply_async(point_force_func, args=(tetras_force[:, 3], points_tetras)) for
+    proc_list_3 = [pool.apply_async(point_force_func, args=(tetras_force[3], points_tetras)) for
                    points_tetras
                    in points_tetras_3_splited]
-    points_force_0 = proc_list_0[0].get()
-    points_force_1 = proc_list_1[0].get()
-    points_force_2 = proc_list_2[0].get()
-    points_force_3 = proc_list_3[0].get()
-    for proc_0, proc_1, proc_2, proc_3 in zip(proc_list_0[1:], proc_list_1[1:], proc_list_2[1:], proc_list_3[1:]):
+    Npoint = len(points_tetras_0)
+    points_force_0 = np.zeros((Npoint, 3))
+    points_force_1 = np.zeros((Npoint, 3))
+    points_force_2 = np.zeros((Npoint, 3))
+    points_force_3 = np.zeros((Npoint, 3))
+    position = 0
+    for proc_0, proc_1, proc_2, proc_3 in zip(proc_list_0, proc_list_1, proc_list_2, proc_list_3):
         f_0 = proc_0.get()
         f_1 = proc_1.get()
         f_2 = proc_2.get()
         f_3 = proc_3.get()
-        points_force_0 = np.concatenate([points_force_0, f_0])
-        points_force_1 = np.concatenate([points_force_1, f_1])
-        points_force_2 = np.concatenate([points_force_2, f_2])
-        points_force_3 = np.concatenate([points_force_3, f_3])
+        l = len(f_0)
+        points_force_0[position:position + l] = f_0
+        points_force_1[position:position + l] = f_1
+        points_force_2[position:position + l] = f_2
+        points_force_3[position:position + l] = f_3
+        position += l
     points_force = points_force_0 + points_force_1 + points_force_2 + points_force_3
     return points_force
