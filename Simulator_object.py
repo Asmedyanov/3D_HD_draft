@@ -373,6 +373,7 @@ class Simulator:
             self.pool,
             self.N_nuc
         )
+        self.VolumeCalculator = VolumeCalculator(self.tetras, self.pool, self.N_nuc)
 
     def r_wire(self):
         return np.mean(norm(self.points[self.border_wire], axis=1))
@@ -415,11 +416,11 @@ class Simulator:
         # find new position of each point
         pNew = self.points + vNew * self.dT
         # %%% New density calculation
-        newVolume = Volume_r_short(self.tetras, pNew)
+        newVolume = self.VolumeCalculator.Volume(pNew)
         roNew = self.tetras_mass / newVolume
         # ss = self.ssInitial * power((roNew / self.roInitial), self.gamma)
         viscosity = Viscosity_short_mu_pool(
-            self.tetras, pNew, self.Velocity_Current, self.pool, self.N_nuc
+            self.tetras, pNew, vNew, self.pool, self.N_nuc
         ) * (self.mu * self.dT / (3.0 * np.power(newVolume, 2)))
         self.Viscosity_Current = viscosity
         eNew = self.Energy_Current
