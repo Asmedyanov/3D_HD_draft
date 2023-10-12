@@ -13,6 +13,7 @@ from Force import *
 from My_Math import *
 from Volume import *
 from matplotlib import pyplot as plt
+from ForseCalulator import ForseCalulator
 
 
 class Simulator:
@@ -253,7 +254,7 @@ class Simulator:
         self.gamma = (self.n - 1) / 2
 
         # viscosity coefficient 1.0e-3 Pa*s for water in 20 C
-        self.mu = 1.0
+        # self.mu = 1.0e-1
 
     def init_Mesh(self):
         # %%% Setting geometry
@@ -326,16 +327,19 @@ class Simulator:
         points_tetras_1 = proc_list[1].get()
         points_tetras_2 = proc_list[2].get()
         points_tetras_3 = proc_list[3].get()
-        points_tetras = [points_tetras_0, points_tetras_1, points_tetras_2, points_tetras_3]
+        # points_tetras = [points_tetras_0, points_tetras_1, points_tetras_2, points_tetras_3]
         self.points_tetras_0 = np.array(points_tetras_0, dtype=object)
         self.points_tetras_1 = np.array(points_tetras_1, dtype=object)
         self.points_tetras_2 = np.array(points_tetras_2, dtype=object)
         self.points_tetras_3 = np.array(points_tetras_3, dtype=object)
 
     def init_Masses(self):
-        self.roInitial = np.ones(self.Ntr)
+        self.roInitial = ones(self.Ntr)
+        self.mu = zeros(self.Ntr)
         self.roInitial[self.foilInd] = self.roMetalStart
+        self.mu[self.foilInd] = 1.0e-6
         self.roInitial[self.waterInd] = self.roWaterStart
+        self.mu[self.waterInd] = 1.0e-3
         vol = volume(self.points[self.tetras[:, 0]], self.points[self.tetras[:, 1]],
                      self.points[self.tetras[:, 2]], self.points[self.tetras[:, 3]])
         self.tetras_mass = self.roInitial * vol
@@ -355,6 +359,20 @@ class Simulator:
             poin_masses[i] = m / 4
         self.point_mass = poin_masses
         self.ssInitial = sqrt(self.A * self.n / self.roInitial)
+        self.ForseCalculator = ForseCalulator(
+            self.tetras,
+            self.points_tetras_0,
+            self.points_tetras_1,
+            self.points_tetras_2,
+            self.points_tetras_3,
+            self.sector_surface_water_XY,
+            self.sector_surface_water_YZ,
+            self.sector_surface_water_XZ,
+            self.border_outer,
+            self.point_mass,
+            self.pool,
+            self.N_nuc
+        )
 
     def r_wire(self):
         return np.mean(norm(self.points[self.border_wire], axis=1))
@@ -391,43 +409,22 @@ class Simulator:
         self.eInp = np.where(((self.timing > t1) & (self.timing < t2)), self.eInp + e_comb, self.eInp, )
 
     def main_loop(self, mm):
-        # %%% ------ Force calculation for each triangle ------ %%%
-        # pressure in triangle
-        tetras_force = tetra_force_pool(self.tetras, self.points,
-                                        self.Pressure_Current, self.pool, self.N_nuc)
-        point_force = point_force_list_pool(self.points_tetras_0, self.points_tetras_1,
-                                            self.points_tetras_2, self.points_tetras_3,
-                                            tetras_force, self.pool, self.N_nuc)
-        point_force[self.sector_surface_XY, 2] *= 0
-        point_force[self.sector_surface_YZ, 0] *= 0
-        point_force[self.sector_surface_XZ, 1] *= 0
-        point_force[self.border_outer] *= 0
-        point_acceleration = point_force / self.point_mass[:, np.newaxis]
-
+        point_acceleration = self.ForseCalculator.point_acceleration(self.points, self.Pressure_Current)
         # find velocity of each point
         vNew = self.Velocity_Current + point_acceleration * self.dT
-
         # find new position of each point
         pNew = self.points + vNew * self.dT
-
         # %%% New density calculation
         newVolume = Volume_r_short(self.tetras, pNew)
         roNew = self.tetras_mass / newVolume
         # ss = self.ssInitial * power((roNew / self.roInitial), self.gamma)
         viscosity = Viscosity_short_mu_pool(
             self.tetras, pNew, self.Velocity_Current, self.pool, self.N_nuc
-        ) * (self.mu * self.dT / (3.0 * newVolume ** 2))
+        ) * (self.mu * self.dT / (3.0 * np.power(newVolume, 2)))
         self.Viscosity_Current = viscosity
-        # test_array = viscosity / self.Pressure_Current
-        # print(np.min(test_array))
-        # print(np.max(test_array))
-        # print(np.mean(test_array))
-        # % % % New pressure, energy and temperature calculation
         eNew = self.Energy_Current
         presNew = self.Pressure_Current
         tempNew = self.Temperature_Current
-        # press_EOS = self.Pressure_Current
-
         presNew[self.foilInd], tempNew[self.foilInd] = self.Metal_EOS.ERoFindPT_pool(
             eNew[self.foilInd],
             roNew[self.foilInd],
@@ -441,16 +438,10 @@ class Simulator:
                 1.0 / roNew - 1.0 / self.Ro_Current) * 5.0e7
         eNew[self.foilInd] += self.eInp[mm] * self.cross_metal_coef
         presNew += viscosity
-        # % % % Assigning new values
-        # self.points = (pNew + self.points) / 2.0
         self.points = pNew
-        # self.Velocity_Current = (vNew + self.Velocity_Current) / 2.0
         self.Velocity_Current = vNew
-        # self.Ro_Current = (roNew + self.Ro_Current) / 2.0
         self.Ro_Current = roNew
-        # self.Energy_Current = (eNew + self.Energy_Current) / 2.0
         self.Energy_Current = eNew
-        # self.Pressure_Current = (presNew + self.Pressure_Current) / 2.0  # * 0 + 1.0e-6
         self.Pressure_Prev = self.Pressure_Current
         self.Pressure_Current = presNew
         self.Temperature_Current = tempNew

@@ -1,5 +1,5 @@
 from Area import *
-from numpy import ones, sqrt, square, abs, where
+from numpy import ones, sqrt, square, abs, where,dot
 import numpy as np
 from numpy.linalg import norm
 import matplotlib.pyplot as plt
@@ -58,19 +58,23 @@ def Viscosity_short(triangles, radiusvector, velocity, acceleration, SS, RO):
 
 
 def Viscosity_mu_r(r_0, r_1, r_2, r_3, v_0, v_1, v_2, v_3):
-    A0 = Area_r(r_1, r_2, r_3)
-    A1 = Area_r(r_0, r_2, r_3)
-    A2 = Area_r(r_0, r_1, r_3)
-    A3 = Area_r(r_0, r_1, r_2)
+    A0 = Area_r_vect(r_1, r_2, r_3)
+    A1 = Area_r_vect(r_0, r_2, r_3)
+    A2 = Area_r_vect(r_0, r_1, r_3)
+    A3 = Area_r_vect(r_0, r_1, r_2)
     u_0 = v_0 - (v_1 + v_2 + v_3) / 3.0
     u_1 = v_1 - (v_0 + v_2 + v_3) / 3.0
     u_2 = v_2 - (v_0 + v_1 + v_3) / 3.0
     u_3 = v_3 - (v_0 + v_1 + v_2) / 3.0
+    u_0_perp = dot(u_0, A0) / norm(A0)
+    u_1_perp = dot(u_1, A1) / norm(A1)
+    u_2_perp = dot(u_2, A2) / norm(A2)
+    u_3_perp = dot(u_3, A3) / norm(A3)
     SUM = 0
-    SUM += A0 ** 2 * norm(u_0) ** 2
-    SUM += A1 ** 2 * norm(u_1) ** 2
-    SUM += A2 ** 2 * norm(u_2) ** 2
-    SUM += A3 ** 2 * norm(u_3) ** 2
+    SUM += dot(A0, A0) * (dot(u_0, u_0) - dot(u_0_perp, u_0_perp))
+    SUM += dot(A1, A1) * (dot(u_1, u_1) - dot(u_1_perp, u_1_perp))
+    SUM += dot(A2, A2) * (dot(u_2, u_2) - dot(u_2_perp, u_2_perp))
+    SUM += dot(A3, A3) * (dot(u_3, u_3) - dot(u_3_perp, u_3_perp))
     return SUM
 
 

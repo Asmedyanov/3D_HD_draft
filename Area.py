@@ -28,6 +28,14 @@ def Area_r(r_0, r_1, r_2):
     return cross
 
 
+def Area_r_vect(r_0, r_1, r_2):
+    # vectors of sides
+    r_01 = r_1 - r_0
+    r_02 = r_2 - r_0
+    cross_vect = np.cross(r_01, r_02) / 2.0
+    return cross_vect
+
+
 def Area_r_short(triangles, radiusvector):
     r_0, r_1, r_2 = radiusvector[triangles[:, 0]], radiusvector[triangles[:, 1]], radiusvector[triangles[:, 2]]
     # vectors of sides
