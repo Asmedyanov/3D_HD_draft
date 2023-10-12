@@ -1,5 +1,5 @@
 from Area import *
-from numpy import ones, sqrt, square, abs, where,dot
+from numpy import ones, sqrt, square, abs, where, dot
 import numpy as np
 from numpy.linalg import norm
 import matplotlib.pyplot as plt
@@ -228,3 +228,38 @@ def Viscosity_short_mu_pool(tetras, r, r_dot, pool, n_nuc):
     # plt.plot(visc)
     # plt.show()
     return visc
+
+
+class ViscosityCalculator:
+    def __init__(self, tetras, pool, n_nuc):
+        self.tetras = tetras
+        self.pool = pool
+        self.n_nuc = n_nuc
+        self.viscosity = np.zeros(len(tetras))
+
+    def Viscosity(self, r, r_dot):
+        r_0 = np.array_split(r[self.tetras[:, 0]], self.n_nuc)
+        r_1 = np.array_split(r[self.tetras[:, 1]], self.n_nuc)
+        r_2 = np.array_split(r[self.tetras[:, 2]], self.n_nuc)
+        r_3 = np.array_split(r[self.tetras[:, 3]], self.n_nuc)
+        r_dot_0 = np.array_split(r_dot[self.tetras[:, 0]], self.n_nuc)
+        r_dot_1 = np.array_split(r_dot[self.tetras[:, 1]], self.n_nuc)
+        r_dot_2 = np.array_split(r_dot[self.tetras[:, 2]], self.n_nuc)
+        r_dot_3 = np.array_split(r_dot[self.tetras[:, 3]], self.n_nuc)
+        proc_list = [self.pool.apply_async(Viscosity_mu_Vector, args=(
+            r_0[i],
+            r_1[i],
+            r_2[i],
+            r_3[i],
+            r_dot_0[i],
+            r_dot_1[i],
+            r_dot_2[i],
+            r_dot_3[i]
+        )) for i in range(self.n_nuc)]
+        position = 0
+        for proc in proc_list:
+            temp = proc.get()
+            l = len(temp)
+            self.viscosity[position:position + l] = temp
+            position += l
+        return self.viscosity
