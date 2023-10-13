@@ -360,6 +360,7 @@ class Simulator:
         self.point_mass = poin_masses
         self.ssInitial = sqrt(self.A * self.n / self.roInitial)
         self.ForseCalculator = ForseCalulator(
+            self.dT,
             self.tetras,
             self.points_tetras_0,
             self.points_tetras_1,
@@ -411,17 +412,18 @@ class Simulator:
         self.eInp = np.where(((self.timing > t1) & (self.timing < t2)), self.eInp + e_comb, self.eInp, )
 
     def main_loop(self, mm):
-        point_acceleration = self.ForseCalculator.point_acceleration(self.points, self.Pressure_Current)
+        '''point_acceleration = self.ForseCalculator.point_acceleration(self.points, self.Pressure_Current)
         # find velocity of each point
-        vNew = self.Velocity_Current + point_acceleration * self.dT
+        vNew = self.Velocity_Current + point_acceleration * self.dT # For GPU
         # find new position of each point
-        pNew = self.points + vNew * self.dT
+        pNew = self.points + vNew * self.dT #For GPU'''
+        vNew, pNew = self.ForseCalculator.get_new_vectors(self.points, self.Velocity_Current, self.Pressure_Current)
         # %%% New density calculation
         newVolume = self.VolumeCalculator.Volume(pNew)
-        roNew = self.tetras_mass / newVolume
+        roNew = self.tetras_mass / newVolume  # For GPU
         # ss = self.ssInitial * power((roNew / self.roInitial), self.gamma)
         viscosity = self.ViscosityCalculator.Viscosity(pNew, vNew) * (
-                    self.mu * self.dT / (3.0 * np.power(newVolume, 2)))
+                self.mu * self.dT / (3.0 * np.power(newVolume, 2)))  # For GPU
         self.Viscosity_Current = viscosity
         eNew = self.Energy_Current
         presNew = self.Pressure_Current
@@ -434,11 +436,11 @@ class Simulator:
             eNew[self.waterInd],
             roNew[self.waterInd],
             self.pool, self.N_nuc)
-        presNew = (presNew + self.Pressure_Current + self.Pressure_Prev) / 3.0
+        presNew = (presNew + self.Pressure_Current + self.Pressure_Prev) / 3.0+viscosity  # For GPU
         eNew -= (presNew + self.Pressure_Current) * (
-                1.0 / roNew - 1.0 / self.Ro_Current) * 5.0e7
-        eNew[self.foilInd] += self.eInp[mm] * self.cross_metal_coef
-        presNew += viscosity
+                1.0 / roNew - 1.0 / self.Ro_Current) * 5.0e7  # For GPU
+        eNew[self.foilInd] += self.eInp[mm] * self.cross_metal_coef  # For GPU
+        #presNew += viscosity  # For GPU
         self.points = pNew
         self.Velocity_Current = vNew
         self.Ro_Current = roNew
