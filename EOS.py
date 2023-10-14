@@ -70,12 +70,15 @@ def my_distance2(p1, p2):
 class EOS:
     """Equation of state"""
 
-    def __init__(self, filename):
+    def __init__(self, filename, Ntr, pool, n_nuc):
         """
         Reading Equation of state file
         :param filename: Equation of state file name
         """
-        # Rho_table, self.Temp_table, self.Press_table, self.Ener_table = readKB(filename)
+        self.pool = pool
+        self.n_nuc = n_nuc
+        self.Ntr = Ntr
+        self.index_list = np.array_split(np.arange(Ntr), n_nuc)
         Rho_table, Temp_table, Press_table, Ener_table = readKB(filename)
         N_mult = 3
         func_press = interpolate.interp2d(Temp_table, Rho_table, Press_table, kind='cubic')
@@ -106,86 +109,9 @@ class EOS:
         p_norm = 1.0e-6
         t_norm = 300.0
         self.e_norm, self.rho_norm = self.FromPTtoERo(p_norm, t_norm)
-        # p_norm, t_norm = self.ERoFindPT(e_norm, rho_norm)
         print(f'E = {self.e_norm}, Ro = {self.rho_norm}\n')
-        # print(f'P = {p_norm}, T = {t_norm}\n')
-
-    def start_processes(self, Nelem):
-        self.full_array_len = Nelem
-        self.start = [i * self.full_array_len // self.my_n_proc for i in range(self.my_n_proc)]
-        self.finish = [(i + 1) * self.full_array_len // self.my_n_proc for i in range(self.my_n_proc)]
-        self.finish[-1] = self.full_array_len
-        self.my_E = []
-        self.my_Ro = []
-        self.my_P = [np.zeros(2) for i in range(self.my_n_proc)]
-        self.my_T = [np.zeros(2) for i in range(self.my_n_proc)]
-        self.flag_ready = np.zeros(self.my_n_proc)
-        self.flag_off = np.zeros(self.my_n_proc)
-        global q
-        global q_out_array
-
-        q = mp.Queue()
-        # self.q = q
-        for i in range(self.my_n_proc):
-            q.put(self)
-            q_out_array.append(mp.Queue())
-        # self.manager = mp.Manager()
-        # self.queues = [self.manager.Queue() for i in range(self.my_n_proc)]
-        # for q in self.queues:
-        #    q.put(self)
-        # self.my_pool = mp.Pool(processes=self.my_n_proc)
-        # shm = shared_memory.SharedMemory(create=True, size=self.flag_ready.nbytes)
-        # self.flag_ready = np.ndarray(self.flag_ready.shape, buffer=shm.buf)
-        # self.flag_ready[:] = np.zeros(self.my_n_proc)
-        # self.my_Processes = [self.my_pool.apply_async(self.Process_func, args=(self.queues[i], i,)) for i in
-        #                     range(self.my_n_proc)]
-        self.my_Processes = [mp.Process(target=self.Process_func, args=(q, q_out_array[i], i,)) for i in
-                             range(self.my_n_proc)]
-        for proc in self.my_Processes:
-            # pickle.dumps(proc._config['authkey'])
-            proc.start()
-        # for proc in self.my_Processes:
-        # proc.join()
-
-    def Process_func(self, q, q_out, i: int):
-        # my_EOS = q.get()
-        while True:
-            # print(f'queue is empty {q.empty()}')
-            if not q.empty():
-                my_EOS = q.get()
-                # print(f'process {i} works')
-                if len(my_EOS.my_E) != 0:
-                    P, T = my_EOS.ERoFindPT_vector(my_EOS.my_E[i], my_EOS.my_Ro[i])
-                    q_out.put([P, T])
-                    # my_EOS.my_P[i] = P
-                    # my_EOS.my_T[i] = T
-                if my_EOS.flag_off[i] == 1:
-                    print(f'switch off process {i}')
-                    break
-
-    def ERoFindPT_mp_perm(self, E: np.array, Ro: np.array):
-        # print(f'I started {self.my_n_proc} processes')
-        global q
-        self.set_my_E(E)
-        self.set_my_Ro(Ro)
-        # self.flag_ready[:] = np.ones(self.my_n_proc, dtype='int')
-        for i in range(self.my_n_proc):
-            q.put(self)
-        # print(f'I started {self.my_n_proc} processes')
-        while not q.empty():
-            pass
-            # print(f'queue is empty {q.empty()}')
-            # print(f'I wait {self.my_n_proc} processes')
-            # time.sleep(1)
-        for i in range(self.my_n_proc):
-            self.my_P[i], self.my_T[i], = q_out_array[i].get()
-        # print(f'{self.my_n_proc} processes finished')
-        P = self.get_my_P()
-        T = self.get_my_T()
-        return P, T
-
-    def Stop_processes(self):
-        self.flag_off = np.ones(self.my_n_proc)
+        self.T = np.zeros(Ntr)
+        self.P = np.zeros(Ntr)
 
     def set_my_E(self, E: np.array):
         self.my_E = [E[self.start[i]:self.finish[i]] for i in range(self.my_n_proc)]
@@ -444,33 +370,23 @@ class EOS:
 
         return E, Ro
 
-    def ERoFindPT_pool(self, E: np.array, Ro: np.array, pool, n_proc: int):
-        '''if ((self.full_array_len == 0) | (n_proc != self.n_proc)):
-            self.n_proc = n_proc
-            self.full_array_len = E.size
-            self.start = [i * self.full_array_len // n_proc for i in range(n_proc)]
-            self.finish = [(i + 1) * self.full_array_len // n_proc for i in range(n_proc)]
-            self.finish[-1] = self.full_array_len'''
-        E_splited = np.array_split(E, n_proc)
-        Ro_splited = np.array_split(Ro, n_proc)
-        proc_array = [pool.apply_async(self.ERoFindPT_vector, args=(E_, Ro_)) for E_, Ro_ in zip(E_splited, Ro_splited)]
-        Ntr = len(E)
-        T = np.zeros(Ntr)
-        P = np.zeros(Ntr)
-        position = 0
-        for proc in proc_array:
-            tempP, tempT = proc.get()
-            l = len(tempT)
-            T[position:position + l] = tempT
-            P[position:position + l] = tempP
-            position += l
-        return P, T
+    def ERoFindPT_pool(self, E, Ro):
+        proc_array = [self.pool.apply_async(self.ERoFindPT_vector, args=(
+            E[self.index_list[i]],
+            Ro[self.index_list[i]])) for i in
+                      range(self.n_nuc)]
+
+        for i in range(self.n_nuc):
+            tempP, tempT = proc_array[i].get()
+            self.T[self.index_list[i]] = tempT
+            self.P[self.index_list[i]] = tempP
+        return self.P, self.T
 
     def __getstate__(self):
         self_dict = self.__dict__.copy()
         try:
             # del self_dict['my_pool']
-            del self_dict['my_Processes']
+            del self_dict['pool']
             # del self_dict['manager']
             # del self_dict['queues']
         except:

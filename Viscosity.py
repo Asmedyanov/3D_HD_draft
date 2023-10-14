@@ -57,7 +57,7 @@ def Viscosity_short(triangles, radiusvector, velocity, acceleration, SS, RO):
     return v
 
 
-def Viscosity_mu_r(r_0, r_1, r_2, r_3, v_0, v_1, v_2, v_3):
+def Viscosity_mu_r(r_0, r_1, r_2, r_3, v_0, v_1, v_2, v_3, volume, mudt):
     A0 = Area_r_vect(r_1, r_2, r_3)
     A1 = Area_r_vect(r_0, r_2, r_3)
     A2 = Area_r_vect(r_0, r_1, r_3)
@@ -75,10 +75,11 @@ def Viscosity_mu_r(r_0, r_1, r_2, r_3, v_0, v_1, v_2, v_3):
     SUM += dot(A1, A1) * (dot(u_1, u_1) - dot(u_1_perp, u_1_perp))
     SUM += dot(A2, A2) * (dot(u_2, u_2) - dot(u_2_perp, u_2_perp))
     SUM += dot(A3, A3) * (dot(u_3, u_3) - dot(u_3_perp, u_3_perp))
-    return SUM
+    viscosity = SUM * mudt / (3 * volume ** 2)
+    return viscosity
 
 
-Viscosity_mu_Vector = np.vectorize(Viscosity_mu_r, signature='(n),(n),(n),(n),(n),(n),(n),(n)->()')
+Viscosity_mu_Vector = np.vectorize(Viscosity_mu_r, signature='(n),(n),(n),(n),(n),(n),(n),(n),(),()->()')
 
 
 def Viscosity_r(r_0, r_1, r_2, r_3, v_0, v_1, v_2, v_3, a_0, a_1, a_2, a_3, SS, RO):
@@ -231,35 +232,32 @@ def Viscosity_short_mu_pool(tetras, r, r_dot, pool, n_nuc):
 
 
 class ViscosityCalculator:
-    def __init__(self, tetras, pool, n_nuc):
+    def __init__(self, tetras, mu, dt, pool, n_nuc):
         self.tetras = tetras
+        Ntr = len(tetras)
         self.pool = pool
         self.n_nuc = n_nuc
-        self.viscosity = np.zeros(len(tetras))
+        self.viscosity = np.zeros(Ntr)
+        self.indexes_list = np.array_split(np.arange(Ntr), n_nuc)
+        self.mudt = mu * dt
+        self.tertas_list_0 = np.array_split(self.tetras[:, 0], n_nuc)
+        self.tertas_list_1 = np.array_split(self.tetras[:, 1], n_nuc)
+        self.tertas_list_2 = np.array_split(self.tetras[:, 2], n_nuc)
+        self.tertas_list_3 = np.array_split(self.tetras[:, 3], n_nuc)
 
-    def Viscosity(self, r, r_dot):
-        r_0 = np.array_split(r[self.tetras[:, 0]], self.n_nuc)
-        r_1 = np.array_split(r[self.tetras[:, 1]], self.n_nuc)
-        r_2 = np.array_split(r[self.tetras[:, 2]], self.n_nuc)
-        r_3 = np.array_split(r[self.tetras[:, 3]], self.n_nuc)
-        r_dot_0 = np.array_split(r_dot[self.tetras[:, 0]], self.n_nuc)
-        r_dot_1 = np.array_split(r_dot[self.tetras[:, 1]], self.n_nuc)
-        r_dot_2 = np.array_split(r_dot[self.tetras[:, 2]], self.n_nuc)
-        r_dot_3 = np.array_split(r_dot[self.tetras[:, 3]], self.n_nuc)
+    def Viscosity(self, r, r_dot, volume):
         proc_list = [self.pool.apply_async(Viscosity_mu_Vector, args=(
-            r_0[i],
-            r_1[i],
-            r_2[i],
-            r_3[i],
-            r_dot_0[i],
-            r_dot_1[i],
-            r_dot_2[i],
-            r_dot_3[i]
+            r[self.tertas_list_0[i]],
+            r[self.tertas_list_1[i]],
+            r[self.tertas_list_2[i]],
+            r[self.tertas_list_3[i]],
+            r_dot[self.tertas_list_0[i]],
+            r_dot[self.tertas_list_1[i]],
+            r_dot[self.tertas_list_2[i]],
+            r_dot[self.tertas_list_3[i]],
+            volume[self.indexes_list[i]],
+            self.mudt[self.indexes_list[i]],
         )) for i in range(self.n_nuc)]
-        position = 0
-        for proc in proc_list:
-            temp = proc.get()
-            l = len(temp)
-            self.viscosity[position:position + l] = temp
-            position += l
+        for i in range(self.n_nuc):
+            self.viscosity[self.indexes_list[i]] = proc_list[i].get()
         return self.viscosity

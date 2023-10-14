@@ -21,10 +21,11 @@ class Simulator:
         self.load_folder()
         self.init_Pool()
         print('init_Pool finished')
-        self.init_EOS()
-        print('init_EOS finished')
         self.init_Mesh()
         print('init_Mesh finished')
+        self.init_EOS()
+        print('init_EOS finished')
+
         self.init_Masses()
         print('init_Masses finished')
         self.init_Power()
@@ -184,6 +185,7 @@ class Simulator:
         self.eInitial[self.foilInd] = self.eMetalStart
         self.eInitial[self.waterInd] = self.eWaterStart
         self.Pressure_Current = ones(self.Ntr) * 1.0e-6
+        self.Pressure_New = ones(self.Ntr) * 1.0e-6
         self.Viscosity_Current = np.zeros(self.Ntr)
         self.Pressure_Prev = ones(self.Ntr) * 1.0e-6
         self.Pressure_Initial = ones(self.Ntr) * 1.0e-6
@@ -191,11 +193,13 @@ class Simulator:
         self.presMed = ones(self.Ntr) * 1.0e-6
         self.presNew = ones(self.Ntr) * 1.0e-6
         self.Temperature_Current = ones(self.Ntr) * 300.0
+        self.Temperature_New = ones(self.Ntr) * 300.0
         self.Temperature_Initial = ones(self.Ntr) * 300.0
         self.Ro_Current = np.ones(self.Ntr)
         self.Ro_Current[self.foilInd] = self.roMetalStart
         self.Ro_Current[self.waterInd] = self.roWaterStart
         self.Energy_Current = np.ones(self.Ntr)
+        self.Energy_new = np.ones(self.Ntr)
         self.Energy_Current[self.foilInd] = self.eMetalStart
         self.Energy_Current[self.waterInd] = self.eWaterStart
         self.Pressure_Current[self.foilInd], self.Temperature_Current[self.foilInd] = self.Metal_EOS.ERoFindPT(
@@ -237,8 +241,8 @@ class Simulator:
         plt.show()
 
     def init_EOS(self):
-        self.Metal_EOS = EOS('EOS/EOS_Me.KBT')
-        self.Water_EOS = EOS('EOS/EOS_Water.KBT')
+        self.Metal_EOS = EOS('EOS/EOS_Me.KBT', len(self.foilInd), self.pool, self.N_nuc)
+        self.Water_EOS = EOS('EOS/EOS_Water.KBT', len(self.waterInd), self.pool, self.N_nuc)
         # %%% Define initial density, energy and pressure
         self.roWaterStart = self.Water_EOS.rho_norm  # 0.998305  # 0.9982  # % initial density of water [g/cm^3]
         self.roMetalStart = self.Metal_EOS.rho_norm  # 8.93  # % initial density of wire [g/cm^3]
@@ -375,7 +379,7 @@ class Simulator:
             self.N_nuc
         )
         self.VolumeCalculator = VolumeCalculator(self.tetras, self.pool, self.N_nuc)
-        self.ViscosityCalculator = ViscosityCalculator(self.tetras, self.pool, self.N_nuc)
+        self.ViscosityCalculator = ViscosityCalculator(self.tetras, self.mu, self.dT, self.pool, self.N_nuc)
 
     def r_wire(self):
         return np.mean(norm(self.points[self.border_wire], axis=1))
@@ -417,37 +421,28 @@ class Simulator:
         vNew = self.Velocity_Current + point_acceleration * self.dT # For GPU
         # find new position of each point
         pNew = self.points + vNew * self.dT #For GPU'''
-        vNew, pNew = self.ForseCalculator.get_new_vectors(self.points, self.Velocity_Current, self.Pressure_Current)
+        self.Velocity_Current, self.points = self.ForseCalculator.get_new_vectors(self.points, self.Velocity_Current,
+                                                                                  self.Pressure_Current)
         # %%% New density calculation
-        newVolume = self.VolumeCalculator.Volume(pNew)
+        newVolume = self.VolumeCalculator.Volume(self.points)
         roNew = self.tetras_mass / newVolume  # For GPU
         # ss = self.ssInitial * power((roNew / self.roInitial), self.gamma)
-        viscosity = self.ViscosityCalculator.Viscosity(pNew, vNew) * (
-                self.mu * self.dT / (3.0 * np.power(newVolume, 2)))  # For GPU
-        self.Viscosity_Current = viscosity
-        eNew = self.Energy_Current
-        presNew = self.Pressure_Current
-        tempNew = self.Temperature_Current
-        presNew[self.foilInd], tempNew[self.foilInd] = self.Metal_EOS.ERoFindPT_pool(
-            eNew[self.foilInd],
-            roNew[self.foilInd],
-            self.pool, self.N_nuc)
-        presNew[self.waterInd], tempNew[self.waterInd] = self.Water_EOS.ERoFindPT_pool(
-            eNew[self.waterInd],
-            roNew[self.waterInd],
-            self.pool, self.N_nuc)
-        presNew = (presNew + self.Pressure_Current + self.Pressure_Prev) / 3.0+viscosity  # For GPU
-        eNew -= (presNew + self.Pressure_Current) * (
+        self.Viscosity_Current = self.ViscosityCalculator.Viscosity(self.points, self.Velocity_Current, newVolume)
+        self.Pressure_New[self.foilInd], self.Temperature_Current[self.foilInd] = self.Metal_EOS.ERoFindPT_pool(
+            self.Energy_Current[self.foilInd],
+            roNew[self.foilInd])
+        self.Pressure_New[self.waterInd], self.Temperature_Current[self.waterInd] = self.Water_EOS.ERoFindPT_pool(
+            self.Energy_Current[self.waterInd],
+            roNew[self.waterInd])
+        self.Pressure_New = (
+                                    self.Pressure_New + self.Pressure_Current + self.Pressure_Prev) / 3.0 + self.Viscosity_Current  # For GPU
+        self.Energy_Current -= (self.Pressure_New + self.Pressure_Current) * (
                 1.0 / roNew - 1.0 / self.Ro_Current) * 5.0e7  # For GPU
-        eNew[self.foilInd] += self.eInp[mm] * self.cross_metal_coef  # For GPU
-        #presNew += viscosity  # For GPU
-        self.points = pNew
-        self.Velocity_Current = vNew
+        self.Energy_Current[self.foilInd] += self.eInp[mm] * self.cross_metal_coef  # For GPU
+        # presNew += viscosity  # For GPU
         self.Ro_Current = roNew
-        self.Energy_Current = eNew
         self.Pressure_Prev = self.Pressure_Current
-        self.Pressure_Current = presNew
-        self.Temperature_Current = tempNew
+        self.Pressure_Current = self.Pressure_New
         if (mm % self.N_record) == 0:
             self.Regular_Report()
         if (mm % self.N_report) == 0:

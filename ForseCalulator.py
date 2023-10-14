@@ -11,7 +11,6 @@ def movement(v0, r0, f, m, dt):
 
 movement_vect = np.vectorize(movement, signature='(n),(n),(n),(),()->(n),(n)')
 
-
 class ForseCalulator:
     def __init__(self, dt, tetras, points_tetras_0, points_tetras_1, points_tetras_2, points_tetras_3,
                  sector_surface_XY,
@@ -37,10 +36,16 @@ class ForseCalulator:
         self.tetras_force_1 = np.zeros((self.Ntr, 3))
         self.tetras_force_2 = np.zeros((self.Ntr, 3))
         self.tetras_force_3 = np.zeros((self.Ntr, 3))
+        self.index_point_list = np.array_split(np.arange(Npoint), n_nuc)
+        self.index_tetra_list = np.array_split(np.arange(self.Ntr), n_nuc)
         self.points_tetras_0_splited = np.array_split(points_tetras_0, n_nuc)
         self.points_tetras_1_splited = np.array_split(points_tetras_1, n_nuc)
         self.points_tetras_2_splited = np.array_split(points_tetras_2, n_nuc)
         self.points_tetras_3_splited = np.array_split(points_tetras_3, n_nuc)
+        self.tertas_list_0 = np.array_split(self.tetras[:, 0], n_nuc)
+        self.tertas_list_1 = np.array_split(self.tetras[:, 1], n_nuc)
+        self.tertas_list_2 = np.array_split(self.tetras[:, 2], n_nuc)
+        self.tertas_list_3 = np.array_split(self.tetras[:, 3], n_nuc)
 
         self.points_force_0 = np.zeros((Npoint, 3))
         self.points_force_1 = np.zeros((Npoint, 3))
@@ -60,18 +65,17 @@ class ForseCalulator:
         return point_acceleration
 
     def movement_pool(self, v0, r0, f):
-        v_array = np.array_split(v0, self.n_nuc)
-        r_array = np.array_split(r0, self.n_nuc)
-        f_array = np.array_split(f, self.n_nuc)
         proc_array = [self.pool.apply_async(movement_vect, args=(
-            v_array[i], r_array[i], f_array[i], self.mass_array[i], self.dt_array[i])) for i in range(self.n_nuc)]
-        position = 0
-        for proc in proc_array:
-            temp_v, temp_r = proc.get()
-            l = len(temp_v)
-            self.v[position:position + l] = temp_v
-            self.r[position:position + l] = temp_r
-            position += l
+            v0[self.index_point_list[i]],
+            r0[self.index_point_list[i]],
+            f[self.index_point_list[i]],
+            self.mass_array[i],
+            self.dt_array[i]
+        )) for i in range(self.n_nuc)]
+        for i in range(self.n_nuc):
+            temp_v, temp_r = proc_array[i].get()
+            self.v[self.index_point_list[i]] = temp_v
+            self.r[self.index_point_list[i]] = temp_r
         return self.v, self.r
 
     def get_new_vectors(self, points, velocity, pressure):
@@ -85,22 +89,19 @@ class ForseCalulator:
         return v, r
 
     def tetra_force_pool(self, points, pressure):
-        r_0_list = np.array_split(points[self.tetras[:, 0]], self.n_nuc)
-        r_1_list = np.array_split(points[self.tetras[:, 1]], self.n_nuc)
-        r_2_list = np.array_split(points[self.tetras[:, 2]], self.n_nuc)
-        r_3_list = np.array_split(points[self.tetras[:, 3]], self.n_nuc)
-        P_list = np.array_split(pressure, self.n_nuc)
-        proc_array = [self.pool.apply_async(tetra_force_function, args=(r_0_e, r_1_e, r_2_e, r_3_e, P_e)) \
-                      for r_0_e, r_1_e, r_2_e, r_3_e, P_e in zip(r_0_list, r_1_list, r_2_list, r_3_list, P_list)]
-        position = 0
-        for proc in proc_array:
-            temp_0, temp_1, temp_2, temp_3 = np.array(proc.get())
-            l = len(temp_0)
-            self.tetras_force_0[position:position + l] = temp_0
-            self.tetras_force_1[position:position + l] = temp_1
-            self.tetras_force_2[position:position + l] = temp_2
-            self.tetras_force_3[position:position + l] = temp_3
-            position += l
+        proc_array = [self.pool.apply_async(tetra_force_function, args=(
+            points[self.tertas_list_0[i]],
+            points[self.tertas_list_1[i]],
+            points[self.tertas_list_2[i]],
+            points[self.tertas_list_3[i]],
+            pressure[self.index_tetra_list[i]])) \
+                      for i in range(self.n_nuc)]
+        for i in range(self.n_nuc):
+            temp_0, temp_1, temp_2, temp_3 = proc_array[i].get()
+            self.tetras_force_0[self.index_tetra_list[i]] = temp_0
+            self.tetras_force_1[self.index_tetra_list[i]] = temp_1
+            self.tetras_force_2[self.index_tetra_list[i]] = temp_2
+            self.tetras_force_3[self.index_tetra_list[i]] = temp_3
         return np.array([self.tetras_force_0, self.tetras_force_1, self.tetras_force_2, self.tetras_force_3])
 
     def point_force_list_pool(self, tetras_force):
@@ -117,17 +118,14 @@ class ForseCalulator:
         proc_list_3 = [self.pool.apply_async(point_force_func, args=(tetras_force[3], points_tetras)) for
                        points_tetras
                        in self.points_tetras_3_splited]
-        position = 0
-        for proc_0, proc_1, proc_2, proc_3 in zip(proc_list_0, proc_list_1, proc_list_2, proc_list_3):
-            f_0 = proc_0.get()
-            f_1 = proc_1.get()
-            f_2 = proc_2.get()
-            f_3 = proc_3.get()
-            l = len(f_0)
-            self.points_force_0[position:position + l] = f_0
-            self.points_force_1[position:position + l] = f_1
-            self.points_force_2[position:position + l] = f_2
-            self.points_force_3[position:position + l] = f_3
-            position += l
+        for i in range(self.n_nuc):
+            f_0 = proc_list_0[i].get()
+            f_1 = proc_list_1[i].get()
+            f_2 = proc_list_2[i].get()
+            f_3 = proc_list_3[i].get()
+            self.points_force_0[self.index_point_list[i]] = f_0
+            self.points_force_1[self.index_point_list[i]] = f_1
+            self.points_force_2[self.index_point_list[i]] = f_2
+            self.points_force_3[self.index_point_list[i]] = f_3
         points_force = self.points_force_0 + self.points_force_1 + self.points_force_2 + self.points_force_3
         return points_force
