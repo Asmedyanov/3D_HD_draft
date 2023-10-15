@@ -70,12 +70,11 @@ def my_distance2(p1, p2):
 class EOS:
     """Equation of state"""
 
-    def __init__(self, filename, Ntr, pool, n_nuc):
+    def __init__(self, filename, Ntr, n_nuc):
         """
         Reading Equation of state file
         :param filename: Equation of state file name
         """
-        self.pool = pool
         self.n_nuc = n_nuc
         self.Ntr = Ntr
         self.index_list = np.array_split(np.arange(Ntr), n_nuc)
@@ -370,8 +369,8 @@ class EOS:
 
         return E, Ro
 
-    def ERoFindPT_pool(self, E, Ro):
-        proc_array = [self.pool.apply_async(self.ERoFindPT_vector, args=(
+    def ERoFindPT_pool(self, E, Ro,pool):
+        proc_array = [pool.apply_async(self.ERoFindPT_vector, args=(
             E[self.index_list[i]],
             Ro[self.index_list[i]])) for i in
                       range(self.n_nuc)]
@@ -382,16 +381,6 @@ class EOS:
             self.P[self.index_list[i]] = tempP
         return self.P, self.T
 
-    def __getstate__(self):
-        self_dict = self.__dict__.copy()
-        try:
-            # del self_dict['my_pool']
-            del self_dict['pool']
-            # del self_dict['manager']
-            # del self_dict['queues']
-        except:
-            pass
-        return self_dict
 
     def __setstate__(self, state):
         self.__dict__.update(state)

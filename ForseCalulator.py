@@ -119,13 +119,9 @@ class ForseCalulator:
                        points_tetras
                        in self.points_tetras_3_splited]
         for i in range(self.n_nuc):
-            f_0 = proc_list_0[i].get()
-            f_1 = proc_list_1[i].get()
-            f_2 = proc_list_2[i].get()
-            f_3 = proc_list_3[i].get()
-            self.points_force_0[self.index_point_list[i]] = f_0
-            self.points_force_1[self.index_point_list[i]] = f_1
-            self.points_force_2[self.index_point_list[i]] = f_2
-            self.points_force_3[self.index_point_list[i]] = f_3
+            self.points_force_0[self.index_point_list[i]] = proc_list_0[i].get()
+            self.points_force_1[self.index_point_list[i]] = proc_list_1[i].get()
+            self.points_force_2[self.index_point_list[i]] = proc_list_2[i].get()
+            self.points_force_3[self.index_point_list[i]] = proc_list_3[i].get()
         points_force = self.points_force_0 + self.points_force_1 + self.points_force_2 + self.points_force_3
         return points_force

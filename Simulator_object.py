@@ -241,8 +241,8 @@ class Simulator:
         plt.show()
 
     def init_EOS(self):
-        self.Metal_EOS = EOS('EOS/EOS_Me.KBT', len(self.foilInd), self.pool, self.N_nuc)
-        self.Water_EOS = EOS('EOS/EOS_Water.KBT', len(self.waterInd), self.pool, self.N_nuc)
+        self.Metal_EOS = EOS('EOS/EOS_Me.KBT', len(self.foilInd), self.N_nuc)
+        self.Water_EOS = EOS('EOS/EOS_Water.KBT', len(self.waterInd), self.N_nuc)
         # %%% Define initial density, energy and pressure
         self.roWaterStart = self.Water_EOS.rho_norm  # 0.998305  # 0.9982  # % initial density of water [g/cm^3]
         self.roMetalStart = self.Metal_EOS.rho_norm  # 8.93  # % initial density of wire [g/cm^3]
@@ -416,24 +416,22 @@ class Simulator:
         self.eInp = np.where(((self.timing > t1) & (self.timing < t2)), self.eInp + e_comb, self.eInp, )
 
     def main_loop(self, mm):
-        '''point_acceleration = self.ForseCalculator.point_acceleration(self.points, self.Pressure_Current)
-        # find velocity of each point
-        vNew = self.Velocity_Current + point_acceleration * self.dT # For GPU
-        # find new position of each point
-        pNew = self.points + vNew * self.dT #For GPU'''
         self.Velocity_Current, self.points = self.ForseCalculator.get_new_vectors(self.points, self.Velocity_Current,
                                                                                   self.Pressure_Current)
         # %%% New density calculation
         newVolume = self.VolumeCalculator.Volume(self.points)
         roNew = self.tetras_mass / newVolume  # For GPU
-        # ss = self.ssInitial * power((roNew / self.roInitial), self.gamma)
         self.Viscosity_Current = self.ViscosityCalculator.Viscosity(self.points, self.Velocity_Current, newVolume)
         self.Pressure_New[self.foilInd], self.Temperature_Current[self.foilInd] = self.Metal_EOS.ERoFindPT_pool(
             self.Energy_Current[self.foilInd],
-            roNew[self.foilInd])
+            roNew[self.foilInd],
+            self.pool
+        )
         self.Pressure_New[self.waterInd], self.Temperature_Current[self.waterInd] = self.Water_EOS.ERoFindPT_pool(
             self.Energy_Current[self.waterInd],
-            roNew[self.waterInd])
+            roNew[self.waterInd],
+            self.pool
+        )
         self.Pressure_New = (
                                     self.Pressure_New + self.Pressure_Current + self.Pressure_Prev) / 3.0 + self.Viscosity_Current  # For GPU
         self.Energy_Current -= (self.Pressure_New + self.Pressure_Current) * (
@@ -608,12 +606,8 @@ class Simulator:
         # print(f'time for report {time.perf_counter() - start}')
 
     def main_loop_processing(self):
-        # self.Cupper_EOS.Stop_processes()
-        # self.Water_EOS.Stop_processes()
         print('simulation started')
         start = time.perf_counter()
-        # self.prereport()
-        # self.Small_report(0)
         self.local_start = time.perf_counter()
         for mm in range(self.Ntime):
             try:
@@ -627,20 +621,20 @@ class Simulator:
     def main_report(self):
         self.timing[::self.N_record].tofile("BIN/my_time.bin")
         self.Power_interpolated[::self.N_record].tofile("BIN/my_power.bin")
-        '''np.savetxt('Mesh/Mesh_points.csv', self.points)
-        np.savetxt('Mesh/Mesh_elements.csv', self.tetras, )
-        np.savetxt('Mesh/Mesh_markers.csv', self.tetra_marker, )
-        np.savetxt('Mesh/Mesh_1_sector_surface.csv', self.sector_surface_XY)
-        np.savetxt('Mesh/Mesh_1_sector_surface_water.csv', self.sector_surface_water_XY)
-        np.savetxt('Mesh/Mesh_1_sector_fringe_water.csv', self.sector_fringe_water_X)
-        np.savetxt('Mesh/Mesh_2_sector_surface.csv', self.sector_surface_YZ)
-        np.savetxt('Mesh/Mesh_2_sector_surface_water.csv', self.sector_surface_water_2)
-        np.savetxt('Mesh/Mesh_2_sector_fringe_water.csv', self.sector_fringe_water_2)
-        np.savetxt('Mesh/Mesh_3_sector_surface.csv', self.sector_surface_XZ)
-        np.savetxt('Mesh/Mesh_3_sector_surface_water.csv', self.sector_surface_water_XZ)
-        np.savetxt('Mesh/Mesh_3_sector_fringe_water.csv', self.sector_fringe_water_Z)
-        np.savetxt('Mesh/Mesh_outer_border.csv', self.border_outer, )
-        np.savetxt('Mesh/Mesh_water_points.csv', self.waterInd_points, )'''
+        np.savetxt('Mesh/Mesh_points.csv', self.points)
+        np.savetxt('Mesh/tetras.csv', self.tetras, )
+        np.savetxt('Mesh/elementmarkers.csv', self.tetra_marker, )
+        np.savetxt('Mesh/Mesh_XY_sector_surface_nodes.csv', self.sector_surface_XY)
+        np.savetxt('Mesh/Mesh_XY_sector_surface_nodes_water.csv', self.sector_surface_water_XY)
+        np.savetxt('Mesh/Mesh_X_sector_frange_nodes_water.csv', self.sector_fringe_water_X)
+        np.savetxt('Mesh/Mesh_YZ_sector_surface_nodes.csv', self.sector_surface_YZ)
+        np.savetxt('Mesh/Mesh_YZ_sector_surface_nodes_water.csv', self.sector_surface_water_YZ)
+        np.savetxt('Mesh/Mesh_Y_sector_frange_nodes_water.csv', self.sector_fringe_water_Y)
+        np.savetxt('Mesh/Mesh_XZ_sector_surface_nodes.csv', self.sector_surface_XZ)
+        np.savetxt('Mesh/Mesh_XZ_sector_surface_nodes_water.csv', self.sector_surface_water_XZ)
+        np.savetxt('Mesh/Mesh_Z_sector_frange_nodes_water.csv', self.sector_fringe_water_Z)
+        np.savetxt('Mesh/Mesh_outer_surface.csv', self.border_outer, )
+        np.savetxt('Mesh/Mesh_volume_nodes_water.csv', self.waterInd_points, )
 
     def plot_array_on_mesh(self, arr, text, numer, time):
         try:
